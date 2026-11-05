@@ -1,0 +1,340 @@
+openapi: 3.1.0
+info:
+  title: PayCore Financial Core API
+  version: 0.1.0
+  license:
+    name: UNLICENSED
+    identifier: UNLICENSED
+  description: >
+    Contrato público do núcleo financeiro do PayCore (contas, transferências e ledger).
+    Ambiente de laboratório com saldos fictícios — ver RFC-001 para escopo e exclusões.
+servers:
+  - url: http://localhost:8080
+    description: >
+      Ambiente de desenvolvimento local do laboratório. O PayCore é um projeto de
+      portfólio sem ambiente de produção real (RFC-001 §2); não há servidor externo.
+tags:
+  - name: Accounts
+    description: Criação e consulta de contas simuladas (RF-01, RF-02).
+  - name: Transfers
+    description: Transferências entre contas internas e consulta de estado (RF-03, RF-04, RF-05, RF-08).
+
+paths:
+  /accounts:
+    post:
+      tags: [Accounts]
+      summary: Criar conta financeira simulada
+      operationId: createAccount
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateAccountRequest"
+      responses:
+        "201":
+          description: Conta criada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Account"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+
+  /accounts/{accountId}:
+    get:
+      tags: [Accounts]
+      summary: Consultar conta e saldo disponível
+      operationId: getAccount
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/AccountId"
+      responses:
+        "200":
+          description: Conta encontrada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Account"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/AccountNotFound"
+
+  /accounts/{accountId}/postings:
+    get:
+      tags: [Accounts]
+      summary: Consultar histórico de lançamentos da conta
+      operationId: listAccountPostings
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/AccountId"
+        - name: cursor
+          in: query
+          schema: { type: string }
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 200, default: 50 }
+      responses:
+        "200":
+          description: Página de lançamentos, mais recentes primeiro
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PostingPage"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/AccountNotFound"
+
+  /transfers:
+    post:
+      tags: [Transfers]
+      summary: Solicitar transferência entre contas internas
+      description: >
+        Idempotente por `Idempotency-Key`: a repetição da mesma chave com o mesmo corpo
+        devolve a resposta original sem reprocessar (RF-05, I-04).
+      operationId: createTransfer
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: true
+          schema: { type: string, minLength: 1, maxLength: 200 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateTransferRequest"
+      responses:
+        "201":
+          description: Transferência aceita (estado inicial RECEIVED ou posterior, se já concluída de forma síncrona)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Transfer"
+        "200":
+          description: Repetição legítima da mesma chave de idempotência; resposta original devolvida
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Transfer"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/AccountNotFound"
+        "409":
+          description: Conflito de negócio ou de idempotência
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              examples:
+                insufficient_funds:
+                  value: { code: insufficient_funds, message: "Saldo insuficiente para a transferência." }
+                currency_mismatch:
+                  value: { code: currency_mismatch, message: "Moedas de origem e destino diferem." }
+                account_closed:
+                  value: { code: account_closed, message: "Conta de origem ou destino está encerrada." }
+                idempotency_key_conflict:
+                  value: { code: idempotency_key_conflict, message: "Chave de idempotência reutilizada com payload diferente." }
+                idempotency_key_in_progress:
+                  value: { code: idempotency_key_in_progress, message: "Operação com esta chave ainda está em processamento." }
+        "422":
+          description: Transferência semanticamente inválida
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              examples:
+                self_transfer_not_allowed:
+                  value: { code: self_transfer_not_allowed, message: "Conta de origem e destino não podem ser a mesma." }
+
+  /transfers/{transferId}:
+    get:
+      tags: [Transfers]
+      summary: Consultar transferência e seu estado
+      operationId: getTransfer
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: transferId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Transferência encontrada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Transfer"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          description: Transferência não encontrada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+
+  parameters:
+    AccountId:
+      name: accountId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+
+  schemas:
+
+    Account:
+      type: object
+      required: [id, ownerId, currency, overdraftPolicy, status, availableBalance, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        ownerId: { type: string, format: uuid }
+        currency: { type: string, pattern: "^[A-Z]{3}$" }
+        overdraftPolicy: { type: string, enum: [forbidden, allowed] }
+        status: { type: string, enum: [active, closed] }
+        availableBalance:
+          type: integer
+          description: Saldo disponível em centavos, projeção dos postings efetivados.
+        createdAt: { type: string, format: date-time }
+
+    CreateAccountRequest:
+      type: object
+      required: [currency]
+      properties:
+        currency: { type: string, pattern: "^[A-Z]{3}$" }
+        overdraftPolicy:
+          type: string
+          enum: [forbidden, allowed]
+          default: forbidden
+
+    Posting:
+      type: object
+      required: [id, journalEntryId, accountId, direction, amount, currency, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        journalEntryId: { type: string, format: uuid }
+        accountId: { type: string, format: uuid }
+        direction: { type: string, enum: [DEBIT, CREDIT] }
+        amount: { type: integer, minimum: 1 }
+        currency: { type: string, pattern: "^[A-Z]{3}$" }
+        createdAt: { type: string, format: date-time }
+
+    PostingPage:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/Posting" }
+        nextCursor: { type: ["string", "null"] }
+
+    TransferState:
+      type: string
+      enum: [RECEIVED, VALIDATING, PROCESSING, COMPLETED, REJECTED, FAILED]
+      description: >
+        Máquina de estados finita descrita em docs/architecture/modelo-dominio-estados-transferencia.md.
+        REJECTED e FAILED são terminais e mutuamente exclusivos de COMPLETED.
+
+    CreateTransferRequest:
+      type: object
+      required: [sourceAccountId, destinationAccountId, amount, currency]
+      properties:
+        sourceAccountId: { type: string, format: uuid }
+        destinationAccountId: { type: string, format: uuid }
+        amount: { type: integer, minimum: 1, description: Valor em centavos. }
+        currency: { type: string, pattern: "^[A-Z]{3}$" }
+
+    Transfer:
+      type: object
+      required:
+        - id
+        - sourceAccountId
+        - destinationAccountId
+        - amount
+        - currency
+        - state
+        - correlationId
+        - createdAt
+        - updatedAt
+      properties:
+        id: { type: string, format: uuid }
+        sourceAccountId: { type: string, format: uuid }
+        destinationAccountId: { type: string, format: uuid }
+        amount: { type: integer, minimum: 1 }
+        currency: { type: string, pattern: "^[A-Z]{3}$" }
+        state: { $ref: "#/components/schemas/TransferState" }
+        failureReason:
+          type: ["string", "null"]
+          description: Preenchido apenas quando state é REJECTED ou FAILED.
+        journalEntryId:
+          type: ["string", "null"]
+          format: uuid
+          description: Preenchido apenas quando state é COMPLETED.
+        correlationId: { type: string, format: uuid }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    Error:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+          description: Identificador estável do erro, estável entre versões da API.
+        message:
+          type: string
+        details:
+          type: object
+          additionalProperties: true
+
+  responses:
+    ValidationError:
+      description: Requisição malformada
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+          example: { code: validation_error, message: "Campo 'amount' deve ser maior que zero." }
+    Unauthenticated:
+      description: Credencial ausente ou inválida
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+          example: { code: unauthenticated, message: "Credencial ausente ou inválida." }
+    Forbidden:
+      description: Acesso a recurso de outro proprietário
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+          example: { code: forbidden, message: "Esta conta não pertence ao proprietário autenticado." }
+    AccountNotFound:
+      description: Conta não encontrada
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+          example: { code: account_not_found, message: "Conta não encontrada." }
+
+security:
+  - bearerAuth: []
