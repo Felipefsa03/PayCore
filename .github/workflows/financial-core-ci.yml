@@ -1,0 +1,32 @@
+name: financial-core CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "services/financial-core/**"
+      - ".github/workflows/financial-core-ci.yml"
+  pull_request:
+    paths:
+      - "services/financial-core/**"
+      - ".github/workflows/financial-core-ci.yml"
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/financial-core
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+          cache-dependency-path: services/financial-core/**/pom.xml
+
+      - name: Build, lint and test (unit + Testcontainers integration)
+        run: ./mvnw -B verify
