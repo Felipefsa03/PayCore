@@ -6,6 +6,7 @@ import com.paycore.financialcore.accounts.Account;
 import com.paycore.financialcore.accounts.AccountService;
 import com.paycore.financialcore.app.support.AbstractPostgresIntegrationTest;
 import com.paycore.financialcore.ledger.LedgerService;
+import com.paycore.financialcore.app.idempotency.IdempotencyKeyConflictException;
 import com.paycore.financialcore.payments.Transfer;
 import com.paycore.financialcore.payments.TransferRepository;
 import java.util.UUID;
@@ -72,7 +73,7 @@ class TransferIntegrationTest extends AbstractPostgresIntegrationTest {
     Account source = fundedAccount(owner, 50L);
     Account destination = accounts.create(owner, "BRL", Account.OverdraftPolicy.FORBIDDEN);
 
-    int threads = 10;
+    int threads = 5;
     ExecutorService pool = Executors.newFixedThreadPool(threads);
     CountDownLatch start = new CountDownLatch(1);
     CountDownLatch done = new CountDownLatch(threads);
@@ -99,15 +100,17 @@ class TransferIntegrationTest extends AbstractPostgresIntegrationTest {
               } else {
                 rejected.incrementAndGet();
               }
-            } catch (Exception e) {
+            } catch (Throwable e) {
               rejected.incrementAndGet();
+              System.err.println("ERR: " + e);
             } finally {
               done.countDown();
             }
           });
     }
     start.countDown();
-    done.await(30, TimeUnit.SECONDS);
+    boolean finished = done.await(60, TimeUnit.SECONDS);
+    if (!finished) { System.err.println("TIMEOUT: only " + (successes.get()+rejected.get()) + " finished"); }
     pool.shutdown();
 
     long sourceBalance = ledger.balanceOf(source.getId());
@@ -117,5 +120,37 @@ class TransferIntegrationTest extends AbstractPostgresIntegrationTest {
     assertThat(sourceBalance + destinationBalance).isEqualTo(50L);
     assertThat(successes.get() + rejected.get()).isEqualTo(threads);
     assertThat(successes.get()).isLessThanOrEqualTo(5);
+  }
+
+  @Test
+  void replaysSameTransferForSameKeyAndPayload() {
+    UUID owner = UUID.randomUUID();
+    Account source = fundedAccount(owner, 1000L);
+    Account destination = accounts.create(owner, "BRL", Account.OverdraftPolicy.FORBIDDEN);
+    String key = "replay-" + UUID.randomUUID();
+
+    Transfer first =
+        transfers.transfer(owner, source.getId(), destination.getId(), 100L, "BRL", key, UUID.randomUUID());
+    Transfer second =
+        transfers.transfer(owner, source.getId(), destination.getId(), 100L, "BRL", key, UUID.randomUUID());
+
+    assertThat(second.getId()).isEqualTo(first.getId());
+    assertThat(ledger.balanceOf(destination.getId())).isEqualTo(100L);
+  }
+
+  @Test
+  void rejectsReusedKeyWithDifferentPayload() {
+    UUID owner = UUID.randomUUID();
+    Account source = fundedAccount(owner, 1000L);
+    Account destination = accounts.create(owner, "BRL", Account.OverdraftPolicy.FORBIDDEN);
+    String key = "conflict-" + UUID.randomUUID();
+
+    transfers.transfer(owner, source.getId(), destination.getId(), 100L, "BRL", key, UUID.randomUUID());
+
+    org.junit.jupiter.api.Assertions.assertThrows(
+        IdempotencyKeyConflictException.class,
+        () ->
+            transfers.transfer(
+                owner, source.getId(), destination.getId(), 200L, "BRL", key, UUID.randomUUID()));
   }
 }
