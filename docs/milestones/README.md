@@ -18,7 +18,7 @@ o que foi provado e o que ficou pendente** sem depender de conversas ou históri
 
 | Milestone | Tema | Pacote |
 | --------- | ---- | ------ |
-| M1 | Fundação arquitetural | Em construção (checklist, demonstração e retrospectiva serão publicados nesta pasta) |
+| M1 | Fundação arquitetural | [Demonstração](M1-demonstracao.md), [Checklist](M1-checklist.md), [Retrospectiva](M1-retrospectiva.md) |
 | M2 | Núcleo de pagamentos e ledger | Planejado |
 | M3 | Assincronia, integração e conciliação | Planejado |
 | M4 | Risco, conciliação e serviços satélites | Planejado |

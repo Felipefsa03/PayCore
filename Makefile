@@ -67,8 +67,8 @@ docs-check: ## Valida links relativos e âncoras da documentação
 security-check: ## Valida dono, mitigação e risco residual de cada ameaça
 	$(PYTHON) scripts/check-threat-model.py docs/security/modelo-ameacas.md
 
-run: ## Inicia a API em :8080 (requer PostgreSQL)
-	cd $(SERVICE_DIR) && $(MVN) -B -pl app -am spring-boot:run
+run: build ## Compila e inicia a API em :8080 (requer PostgreSQL)
+	cd $(SERVICE_DIR) && java -jar app/target/app-0.1.0-SNAPSHOT.jar
 
 clean: ## Limpa artefatos de build
 	cd $(SERVICE_DIR) && $(MVN) -B clean
