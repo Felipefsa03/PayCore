@@ -28,8 +28,10 @@ revisados a cada milestone que altere ativos, fronteiras ou invariantes.
 
 | Documento | Conteúdo | Status |
 | --------- | -------- | ------ |
+| [Estratégia de testes e matriz de evidências](quality/estrategia-de-testes.md) | Camadas, comandos, cobertura declarada e evidências por requisito | Vigente |
+| [Matriz de evidências por camada](quality/matriz-evidencias.md) | Requisito → teste → comando → evidência | Vigente |
+| [Relatório de execução da M1](quality/evidencias/M1-2026-11-06.md) | Comandos, resultados, cobertura e artefatos | Em revisão |
 | [Testes transversais](../tests/README.md) | O que pertence ao diretório `tests/` e como executar cada camada | Vigente |
-| Estratégia de testes e matriz de evidências | Camadas, comandos, cobertura e evidências por requisito | Planejado (M1) |
 | Runbooks operacionais | Procedimentos de incidente e recuperação | Planejado (M5) |
 
 ## Milestones

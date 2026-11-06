@@ -37,5 +37,5 @@ PostgreSQL local. O banco é migrado pelo Flyway antes de cada cenário.
 - Teste que prova uma invariante referencia o ID da invariante (ex.: `I-05`) no nome ou na
   descrição.
 
-A estratégia completa, com matriz requisito → camada → evidência, será publicada em
-`docs/quality/` na M1.
+A estratégia completa, com matriz requisito → camada → evidência, está publicada em
+[`docs/quality/estrategia-de-testes.md`](../docs/quality/estrategia-de-testes.md).
