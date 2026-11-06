@@ -17,10 +17,12 @@ documento declara status, data, dependências e missão no cabeçalho.
 | Documento | Conteúdo | Status |
 | --------- | -------- | ------ |
 | [Índice de ADRs](adr/README.md) | Decisões estruturais e quando criar uma nova | — |
+| [ADR-002 — Persistência transacional em PostgreSQL](adr/ADR-002-persistencia-postgresql.md) | ACID, isolamento, locks, idempotência, constraints, migrations e operação | Aceito |
+| [Modelo de ameaças inicial](security/modelo-ameacas.md) | STRIDE, ativos, fronteiras, mitigações priorizadas e riscos residuais aceitos | Em revisão |
 | [Padrão de documentação por milestone](engineering/documentation-standard.md) | Taxonomia, ciclo de vida, templates e evidências | Vigente |
 
-ADR-001 (monólito modular) e ADR-002 (persistência e concorrência) serão publicados na M1.
-O modelo de ameaças STRIDE e as mitigações priorizadas também fazem parte do pacote da M1.
+ADR-001 (monólito modular) será publicado na M1. O modelo de ameaças e a ADR-002 são
+revisados a cada milestone que altere ativos, fronteiras ou invariantes.
 
 ## Qualidade e operação
 

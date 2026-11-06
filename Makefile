@@ -12,7 +12,7 @@ COMPOSE ?= docker compose -f infrastructure/docker/docker-compose.yml
 PYTHON ?= python3
 DOCS_CHECK := scripts/check-docs-links.py
 
-.PHONY: help up down logs reset build test test-unit test-integration lint docs-check run clean verify
+.PHONY: help up down logs reset build test test-unit test-integration lint docs-check security-check run clean verify
 
 help: ## Lista os alvos disponíveis
 	@printf 'PayCore — alvos disponíveis:\n\n'
@@ -60,6 +60,9 @@ verify: test ## Alias do gate completo
 
 docs-check: ## Valida links relativos e âncoras da documentação
 	$(PYTHON) $(DOCS_CHECK) .
+
+security-check: ## Valida dono, mitigação e risco residual de cada ameaça
+	$(PYTHON) scripts/check-threat-model.py docs/security/modelo-ameacas.md
 
 run: ## Inicia a API em :8080 (requer PostgreSQL)
 	cd $(SERVICE_DIR) && $(MVN) -B -pl app -am spring-boot:run
