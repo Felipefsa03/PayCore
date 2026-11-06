@@ -16,6 +16,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.test.web.servlet.MvcResult;
 
 /**
@@ -26,6 +28,7 @@ import org.springframework.test.web.servlet.MvcResult;
 class AccountApiIntegrationTest extends AbstractPostgresIntegrationTest {
 
   @Autowired private JdbcTemplate jdbc;
+  @Autowired private PlatformTransactionManager transactionManager;
 
   @Test
   void rejectsRequestWithoutToken() throws Exception {
@@ -202,24 +205,50 @@ class AccountApiIntegrationTest extends AbstractPostgresIntegrationTest {
     return accountId;
   }
 
+  private static final UUID OFFSET_ACCOUNT_ID =
+      UUID.fromString("00000000-0000-0000-0000-000000000001");
+
+  private void ensureOffsetAccount() {
+    jdbc.update(
+        "INSERT INTO accounts (id, owner_id, currency, overdraft_policy, status, created_at) "
+            + "VALUES (?, ?, 'BRL', 'FORBIDDEN', 'ACTIVE', now()) ON CONFLICT (id) DO NOTHING",
+        OFFSET_ACCOUNT_ID,
+        UUID.fromString("00000000-0000-0000-0000-000000000000"));
+  }
+
   private void recordPosting(UUID accountId, String direction, long amount, Instant createdAt) {
+    ensureOffsetAccount();
     UUID journalEntryId = UUID.randomUUID();
     java.sql.Timestamp timestamp = java.sql.Timestamp.from(createdAt);
-    jdbc.update(
-        "INSERT INTO journal_entries (id, transfer_id, currency, created_at) VALUES (?, ?, ?, ?)",
-        journalEntryId,
-        UUID.randomUUID(),
-        "BRL",
-        timestamp);
-    jdbc.update(
-        "INSERT INTO postings (id, journal_entry_id, account_id, direction, amount, currency, "
-            + "created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
-        UUID.randomUUID(),
-        journalEntryId,
-        accountId,
-        direction,
-        amount,
-        "BRL",
-        timestamp);
+    new TransactionTemplate(transactionManager).execute(status -> {
+      jdbc.update(
+          "INSERT INTO journal_entries (id, transfer_id, currency, created_at) VALUES (?, ?, ?, ?)",
+          journalEntryId,
+          UUID.randomUUID(),
+          "BRL",
+          timestamp);
+      String opposite = direction.equals("CREDIT") ? "DEBIT" : "CREDIT";
+      jdbc.update(
+          "INSERT INTO postings (id, journal_entry_id, account_id, direction, amount, currency, "
+              + "created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+          UUID.randomUUID(),
+          journalEntryId,
+          accountId,
+          direction,
+          amount,
+          "BRL",
+          timestamp);
+      jdbc.update(
+          "INSERT INTO postings (id, journal_entry_id, account_id, direction, amount, currency, "
+              + "created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+          UUID.randomUUID(),
+          journalEntryId,
+          OFFSET_ACCOUNT_ID,
+          opposite,
+          amount,
+          "BRL",
+          timestamp);
+      return null;
+    });
   }
 }
