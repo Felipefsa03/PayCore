@@ -31,6 +31,7 @@ revisados a cada milestone que altere ativos, fronteiras ou invariantes.
 | [Estratégia de testes e matriz de evidências](quality/estrategia-de-testes.md) | Camadas, comandos, cobertura declarada e evidências por requisito | Vigente |
 | [Matriz de evidências por camada](quality/matriz-evidencias.md) | Requisito → teste → comando → evidência | Vigente |
 | [Relatório de execução da M1](quality/evidencias/M1-2026-11-06.md) | Comandos, resultados, cobertura e artefatos | Em revisão |
+| [Baseline de performance do M2](quality/baseline-performance-m2.md) | p50/p95/p99, throughput, erros e metodologia | Implementado |
 | [Testes transversais](../tests/README.md) | O que pertence ao diretório `tests/` e como executar cada camada | Vigente |
 | Runbooks operacionais | Procedimentos de incidente e recuperação | Planejado (M5) |
 
