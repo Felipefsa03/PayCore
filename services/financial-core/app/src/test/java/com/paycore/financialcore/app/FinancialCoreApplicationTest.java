@@ -4,50 +4,34 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.paycore.financialcore.accounts.Account;
 import com.paycore.financialcore.accounts.AccountRepository;
+import com.paycore.financialcore.app.support.AbstractPostgresIntegrationTest;
 import java.util.UUID;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
-import org.testcontainers.containers.PostgreSQLContainer;
+import org.springframework.jdbc.core.JdbcTemplate;
 
 /**
  * Prova de que o monólito modular sobe contra um Postgres real, aplica as
  * migrations Flyway, e que os módulos accounts/ledger/payments estão
  * corretamente ligados em um único contexto Spring (confirmação do card de
  * bootstrap: "docker compose up funciona, migrations aplicam e o CI fica
- * verde"). O container é gerenciado manualmente (padrão "singleton
- * container" do Testcontainers) em vez de usar @Testcontainers/@Container,
- * para evitar combinar duas extensões JUnit 5 na mesma classe de teste.
+ * verde").
+ *
+ * <p>A asserção de migrations é intencionalmente independente de dados: outras
+ * classes de integração compartilham o mesmo banco e podem já ter criado contas.
  */
-@SpringBootTest(classes = FinancialCoreApplication.class)
-class FinancialCoreApplicationTest {
-
-  static final PostgreSQLContainer<?> POSTGRES =
-      new PostgreSQLContainer<>("postgres:16-alpine")
-          .withDatabaseName("paycore_it")
-          .withUsername("paycore")
-          .withPassword("paycore");
-
-  @BeforeAll
-  static void startContainer() {
-    POSTGRES.start();
-  }
-
-  @DynamicPropertySource
-  static void registerDataSource(DynamicPropertyRegistry registry) {
-    registry.add("spring.datasource.url", POSTGRES::getJdbcUrl);
-    registry.add("spring.datasource.username", POSTGRES::getUsername);
-    registry.add("spring.datasource.password", POSTGRES::getPassword);
-  }
+class FinancialCoreApplicationTest extends AbstractPostgresIntegrationTest {
 
   @Autowired private AccountRepository accountRepository;
 
+  @Autowired private JdbcTemplate jdbc;
+
   @Test
   void bootsAndAppliesFlywayMigrations() {
-    assertThat(accountRepository.findAll()).isEmpty();
+    Integer applied =
+        jdbc.queryForObject(
+            "SELECT count(*) FROM flyway_schema_history WHERE success", Integer.class);
+    assertThat(applied).isNotNull().isGreaterThanOrEqualTo(3);
   }
 
   @Test
