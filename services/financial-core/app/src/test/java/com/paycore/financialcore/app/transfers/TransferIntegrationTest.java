@@ -17,7 +17,9 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.test.context.TestPropertySource;
 
+@TestPropertySource(properties = "spring.datasource.hikari.maximum-pool-size=30")
 class TransferIntegrationTest extends AbstractPostgresIntegrationTest {
 
   private static final UUID SYSTEM_ACCOUNT_ID =
@@ -152,5 +154,43 @@ class TransferIntegrationTest extends AbstractPostgresIntegrationTest {
         () ->
             transfers.transfer(
                 owner, source.getId(), destination.getId(), 200L, "BRL", key, UUID.randomUUID()));
+
+  }
+
+  @Test
+  void concurrentSameKeyCreatesSingleTransfer() throws InterruptedException {
+    UUID owner = UUID.randomUUID();
+    Account source = fundedAccount(owner, 1000L);
+    Account destination = accounts.create(owner, "BRL", Account.OverdraftPolicy.FORBIDDEN);
+    String key = "same-key-" + UUID.randomUUID();
+
+    int threads = 8;
+    ExecutorService pool = Executors.newFixedThreadPool(threads);
+    CountDownLatch start = new CountDownLatch(1);
+    CountDownLatch done = new CountDownLatch(threads);
+    java.util.concurrent.ConcurrentLinkedQueue<java.util.UUID> ids = new java.util.concurrent.ConcurrentLinkedQueue<>();
+    java.util.concurrent.ConcurrentLinkedQueue<Throwable> errors = new java.util.concurrent.ConcurrentLinkedQueue<>();
+
+    for (int i = 0; i < threads; i++) {
+      pool.submit(() -> {
+        try {
+          start.await();
+          Transfer t = transfers.transfer(owner, source.getId(), destination.getId(), 10L, "BRL", key, UUID.randomUUID());
+          ids.add(t.getId());
+        } catch (Exception e) {
+          // in-progress or conflict are acceptable under contention
+        } finally {
+          done.countDown();
+        }
+      });
+    }
+    start.countDown();
+    done.await(60, TimeUnit.SECONDS);
+    pool.shutdown();
+
+    long distinct = ids.stream().distinct().count();
+    if (ids.isEmpty() && !errors.isEmpty()) { throw new RuntimeException(errors.peek()); }
+    assertThat(distinct).isEqualTo(1L);
+    assertThat(ledger.balanceOf(destination.getId())).isEqualTo(10L);
   }
 }
