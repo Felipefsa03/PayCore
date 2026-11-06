@@ -16,6 +16,8 @@ milestones seguintes, apenas onde a tecnologia resolve um problema real.
 | Ver requisitos, invariantes e glossário | [`docs/requirements`](docs/requirements/requisitos-invariantes-glossario.md) |
 | Entender contas, transferências e estados | [`docs/architecture/modelo-dominio-estados-transferencia.md`](docs/architecture/modelo-dominio-estados-transferencia.md) |
 | Entender autenticação e autorização | [`docs/architecture/autenticacao-e-autorizacao-contas.md`](docs/architecture/autenticacao-e-autorizacao-contas.md) |
+| Ver a decisão de persistência e concorrência | [`docs/adr/ADR-002-persistencia-postgresql.md`](docs/adr/ADR-002-persistencia-postgresql.md) |
+| Consultar ameaças, mitigações e riscos aceitos | [`docs/security/modelo-ameacas.md`](docs/security/modelo-ameacas.md) |
 | Seguir o padrão de documentação | [`docs/engineering/documentation-standard.md`](docs/engineering/documentation-standard.md) |
 | Navegar por toda a documentação | [`docs/README.md`](docs/README.md) |
 
@@ -53,6 +55,7 @@ make up            # sobe o PostgreSQL local (Docker Compose)
 make test          # gate completo: compilação, Checkstyle, testes unitários e de integração
 make run           # inicia a API em http://localhost:8080 (requer PostgreSQL)
 make docs-check    # valida links relativos da documentação
+make security-check # valida dono, mitigação e risco residual do modelo de ameaças
 make down          # derruba o PostgreSQL local
 ```
 

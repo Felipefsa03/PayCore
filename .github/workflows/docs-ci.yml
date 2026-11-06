@@ -29,3 +29,5 @@ jobs:
           python-version: "3.12"
       - name: Validate relative links and anchors
         run: python3 scripts/check-docs-links.py .
+      - name: Validate threat model ownership and residual risk
+        run: python3 scripts/check-threat-model.py docs/security/modelo-ameacas.md

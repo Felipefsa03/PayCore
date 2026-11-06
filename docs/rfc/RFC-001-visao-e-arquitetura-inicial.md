@@ -5,7 +5,7 @@
 | Status            | Em revisão                                                    |
 | Autor             | Luis Felipe (com apoio de execução via Gartrol/Claude Code)   |
 | Data              | 2026-11-05                                                    |
-| Decisões vinculadas | ADR-001 (monólito modular, a escrever), ADR-002 (persistência, a escrever) |
+| Decisões vinculadas | ADR-001 (monólito modular, planejado), [ADR-002](../adr/ADR-002-persistencia-postgresql.md) (persistência, aceito) |
 | Missão            | M1 · Fundação arquitetural (semanas 1–4)                      |
 
 ---
@@ -259,8 +259,9 @@ satélites poliglotas.**
 
 1. **Núcleo contábil local e ACID.** Contas, pagamentos e ledger vivem no mesmo processo e
    no mesmo banco. Débito, crédito, journal entry e registro de idempotência são efetivados
-   em **uma transação**. É o mecanismo mais barato que satisfaz I-01..I-06. (ADR-002
-   detalhará bloqueio transacional vs. atualização condicional e ordem de aquisição de locks.)
+   em **uma transação**. É o mecanismo mais barato que satisfaz I-01..I-06. A
+   [ADR-002](../adr/ADR-002-persistencia-postgresql.md) detalha bloqueio transacional vs.
+   atualização condicional, ordem de aquisição de locks e idempotência.
 2. **Módulos com fronteiras explícitas.** `accounts`, `payments`, `ledger`, `shared` —
    dependências permitidas verificadas em build. A fronteira lógica de hoje é o contrato de
    extração de amanhã. (ADR-001.)
@@ -344,5 +345,6 @@ documentado com resultados verificáveis.
 
 - Plano de engenharia PayCore (24 semanas, M1–M6) — documento de origem do projeto.
 - Architecture Challenge #01 — diagnóstico inicial (problema, perguntas ao CTO, risco e critérios de MVP).
-- Próximos documentos: ADR-001 (monólito modular), ADR-002 (persistência e concorrência),
-  glossário expandido e contratos OpenAPI (cards da missão M1).
+- Próximos documentos: ADR-001 (monólito modular), glossário expandido e contratos OpenAPI
+  (cards da missão M1). A [ADR-002](../adr/ADR-002-persistencia-postgresql.md) e o
+  [modelo de ameaças](../security/modelo-ameacas.md) já estão publicados.

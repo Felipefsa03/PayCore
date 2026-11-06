@@ -6,7 +6,7 @@ alternativas, decisão e consequências** — não é um tutorial nem um resumo 
 | ADR | Título | Status | Missão |
 | --- | ------ | ------ | ------ |
 | ADR-001 | Monólito modular em Java e fronteiras de extração | Planejado | M1 |
-| ADR-002 | Persistência transacional em PostgreSQL e concorrência | Planejado | M1 |
+| [ADR-002](ADR-002-persistencia-postgresql.md) | Persistência transacional em PostgreSQL e concorrência | Aceito | M1 |
 
 ## Quando criar uma ADR
 
