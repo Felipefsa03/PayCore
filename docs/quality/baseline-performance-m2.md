@@ -65,7 +65,36 @@
 | Mínimo | 7,942 ms |
 | Máximo | 38,852 ms |
 
-## 4. Inspeção de índices e consultas
+## 4. Otimização aplicada e comparação antes/depois
+
+**Otimização:** pool Hikari configurável em `application.yml`, com padrão elevado de 10 para 32
+conexões (`DATABASE_POOL_MAX`, mínimo 8). Motivação: o baseline identificou espera por conexão
+como componente do p99 de leitura.
+
+| Cenário | Métrica | Antes | Depois | Variação |
+| ------- | ------- | ----- | ------ | -------- |
+| GET /accounts/{id} | Throughput | 678,43 req/s | 687,67 req/s | +1,4% |
+| GET /accounts/{id} | p50 | 21,008 ms | 21,571 ms | +2,7% |
+| GET /accounts/{id} | p95 | 43,266 ms | 40,385 ms | -6,7% |
+| GET /accounts/{id} | p99 | 58,693 ms | 52,040 ms | -11,3% |
+| POST /accounts | Throughput | 463,12 req/s | 463,91 req/s | +0,2% |
+| POST /accounts | p50 | 16,242 ms | 15,815 ms | -2,6% |
+| POST /accounts | p95 | 26,017 ms | 26,350 ms | +1,3% |
+| POST /accounts | p99 | 28,515 ms | 29,174 ms | +2,3% |
+
+### Decisão
+
+- O ganho foi modesto e concentrado no p99 de leitura; a criação de conta não melhorou.
+- O gargalo não é apenas o pool: o tempo de serialização JSON, o filtro de segurança e a
+  validação de token dominam a latência. Aumentar o pool além de 32 não deve trazer ganho
+  proporcional e consome recursos.
+- A configuração permanece parametrizada (`DATABASE_POOL_MAX`) para que ambientes com mais
+  núcleos possam ajustar sem alterar código.
+- Próxima otimização candidata, se necessário: cache de leitura de conta por id com
+  invalidação explícita, ou redução de overhead de autenticação. Só vale se o p95 for
+  inaceitável após o endpoint de transferência entrar em carga.
+
+## 5. Inspeção de índices e consultas
 
 Índices existentes relevantes:
 
@@ -84,7 +113,7 @@ Planos observados:
 - Consulta de conta por id é PK, O(1).
 - Consulta de transferência por idempotency key usa índice único.
 
-## 5. Contenção identificada
+## 6. Contenção identificada
 
 - O pool Hikari padrão (10 conexões) é o principal limitador sob concorrência alta; o p99
   de leitura (58,7 ms) reflete espera por conexão mais do que execução SQL.
@@ -95,7 +124,7 @@ Planos observados:
   concorrência em serviço (`TransferIntegrationTest`) cobre 8 threads com uma transferência
   financeira por chave compartilhada, sem sobregiro.
 
-## 6. Metodologia
+## 7. Metodologia
 
 1. Aquecimento de 100 requisições antes da medição.
 2. Execução com pool fixo de threads e `CountDownLatch`.
@@ -105,7 +134,7 @@ Planos observados:
 6. Taxa de erro = respostas não-2xx / total.
 7. Sem think time; carga sustentada.
 
-## 7. Reprodução
+## 8. Reprodução
 
 ```sh
 make build
@@ -118,7 +147,7 @@ javac -d /tmp scripts/baseline-performance.java
 java -cp /tmp BaselinePerformance
 ```
 
-## 8. Limitações
+## 9. Limitações
 
 - Sem k6/Gatling instalado; o harness Java usa `HttpClient` e mede latência cliente.
 - Ambiente de laboratório, sem TLS, sem rede real e sem carga de transferência HTTP.
