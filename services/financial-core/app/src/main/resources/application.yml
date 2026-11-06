@@ -25,3 +25,12 @@ management:
 
 server:
   port: ${SERVER_PORT:8080}
+
+paycore:
+  auth:
+    jwt:
+      # Ambiente de laboratório: o segredo abaixo é público e serve apenas para
+      # execução local/testes. Em qualquer ambiente compartilhado, defina
+      # PAYCORE_AUTH_JWT_SECRET com um segredo de pelo menos 32 bytes.
+      issuer: ${PAYCORE_AUTH_JWT_ISSUER:paycore-lab}
+      secret: ${PAYCORE_AUTH_JWT_SECRET:paycore-lab-dev-only-secret-change-me-0123456789abcdef}
