@@ -90,6 +90,53 @@ public class Transfer {
     this.updatedAt = now;
   }
 
+  public void markValidating() {
+    if (state != TransferState.RECEIVED) {
+      throw new IllegalStateException("cannot validate transfer in state " + state);
+    }
+    state = TransferState.VALIDATING;
+    touch();
+  }
+
+  public void markProcessing() {
+    if (state != TransferState.VALIDATING && state != TransferState.RECEIVED) {
+      throw new IllegalStateException("cannot process transfer in state " + state);
+    }
+    state = TransferState.PROCESSING;
+    touch();
+  }
+
+  public void complete(UUID journalEntryId) {
+    if (state != TransferState.PROCESSING && state != TransferState.VALIDATING) {
+      throw new IllegalStateException("cannot complete transfer in state " + state);
+    }
+    state = TransferState.COMPLETED;
+    this.journalEntryId = journalEntryId;
+    touch();
+  }
+
+  public void reject(String reason) {
+    if (state == TransferState.COMPLETED || state == TransferState.FAILED) {
+      throw new IllegalStateException("cannot reject transfer in state " + state);
+    }
+    state = TransferState.REJECTED;
+    this.failureReason = reason;
+    touch();
+  }
+
+  public void fail(String reason) {
+    if (state == TransferState.COMPLETED) {
+      throw new IllegalStateException("cannot fail a completed transfer");
+    }
+    state = TransferState.FAILED;
+    this.failureReason = reason;
+    touch();
+  }
+
+  private void touch() {
+    this.updatedAt = Instant.now();
+  }
+
   public UUID getId() {
     return id;
   }
