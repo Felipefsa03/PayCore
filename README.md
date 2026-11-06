@@ -54,8 +54,9 @@ make help          # lista os alvos disponíveis
 make up            # sobe o PostgreSQL local (Docker Compose)
 make test          # gate completo: compilação, Checkstyle, testes unitários e de integração
 make run           # inicia a API em http://localhost:8080 (requer PostgreSQL)
-make docs-check    # valida links relativos da documentação
-make security-check # valida dono, mitigação e risco residual do modelo de ameaças
+make docs-check         # valida links relativos da documentação
+make security-check     # valida dono, mitigação e risco residual do modelo de ameaças
+make coverage-summary   # resume a cobertura JaCoCo por módulo
 make down          # derruba o PostgreSQL local
 ```
 

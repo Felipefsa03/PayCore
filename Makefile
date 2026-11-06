@@ -12,7 +12,7 @@ COMPOSE ?= docker compose -f infrastructure/docker/docker-compose.yml
 PYTHON ?= python3
 DOCS_CHECK := scripts/check-docs-links.py
 
-.PHONY: help up down logs reset build test test-unit test-integration lint docs-check security-check run clean verify
+.PHONY: help up down logs reset build test test-unit test-integration lint docs-check security-check coverage-summary run clean verify
 
 help: ## Lista os alvos disponíveis
 	@printf 'PayCore — alvos disponíveis:\n\n'
@@ -55,6 +55,9 @@ test-integration: ## Executa apenas testes de integração (Testcontainers ou PA
 
 test: ## Gate completo: compilação, Checkstyle, testes unitários e de integração
 	cd $(SERVICE_DIR) && $(MVN) -B verify
+
+coverage-summary: ## Resume a cobertura JaCoCo por módulo (após make test)
+	$(PYTHON) scripts/coverage-summary.py .
 
 verify: test ## Alias do gate completo
 
