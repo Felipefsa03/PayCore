@@ -1,0 +1,31 @@
+name: docs CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "docs/**"
+      - "README.md"
+      - "tests/README.md"
+      - "scripts/check-docs-links.py"
+      - "Makefile"
+      - ".github/workflows/docs-ci.yml"
+  pull_request:
+    paths:
+      - "docs/**"
+      - "README.md"
+      - "tests/README.md"
+      - "scripts/check-docs-links.py"
+      - "Makefile"
+      - ".github/workflows/docs-ci.yml"
+
+jobs:
+  links:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Validate relative links and anchors
+        run: python3 scripts/check-docs-links.py .
