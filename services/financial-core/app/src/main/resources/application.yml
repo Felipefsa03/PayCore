@@ -5,6 +5,9 @@ spring:
     url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/paycore}
     username: ${DATABASE_USER:paycore}
     password: ${DATABASE_PASSWORD:paycore}
+    hikari:
+      maximum-pool-size: ${DATABASE_POOL_MAX:32}
+      minimum-idle: ${DATABASE_POOL_MIN:8}
   jpa:
     hibernate:
       ddl-auto: validate
