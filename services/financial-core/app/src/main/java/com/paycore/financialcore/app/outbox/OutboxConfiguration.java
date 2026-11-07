@@ -1,6 +1,6 @@
 package com.paycore.financialcore.app.outbox;
 
-import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -12,7 +12,11 @@ public class OutboxConfiguration {
    * fornecer outro {@link DomainEventPublisher} sem alterar o publicador.
    */
   @Bean
-  @ConditionalOnMissingBean(DomainEventPublisher.class)
+  @ConditionalOnProperty(
+      prefix = "paycore.outbox",
+      name = "transport",
+      havingValue = "log",
+      matchIfMissing = true)
   DomainEventPublisher loggingDomainEventPublisher() {
     return new LoggingDomainEventPublisher();
   }

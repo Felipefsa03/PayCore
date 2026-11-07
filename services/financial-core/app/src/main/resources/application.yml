@@ -15,6 +15,16 @@ spring:
   flyway:
     enabled: true
     locations: classpath:db/migration
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      acks: all
+      retries: 10
+      properties:
+        enable.idempotence: true
+        compression.type: lz4
 
 management:
   endpoints:
@@ -30,6 +40,9 @@ server:
   port: ${SERVER_PORT:8080}
 
 paycore:
+  outbox:
+    # log: transporte de laboratório; kafka: publica nos tópicos versionados.
+    transport: ${PAYCORE_OUTBOX_TRANSPORT:log}
   auth:
     jwt:
       # Ambiente de laboratório: o segredo abaixo é público e serve apenas para

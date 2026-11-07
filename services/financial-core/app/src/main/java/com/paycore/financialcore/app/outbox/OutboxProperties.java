@@ -24,6 +24,11 @@ public class OutboxProperties {
 
   private boolean scheduled = true;
 
+  /** Transporte do outbox: {@code log} (laboratório) ou {@code kafka}. */
+  private String transport = "log";
+
+  private long kafkaSendTimeoutMs = 5_000;
+
   public int getBatchSize() {
     return batchSize;
   }
@@ -70,5 +75,21 @@ public class OutboxProperties {
 
   public void setScheduled(boolean scheduled) {
     this.scheduled = scheduled;
+  }
+
+  public String getTransport() {
+    return transport;
+  }
+
+  public void setTransport(String transport) {
+    this.transport = transport;
+  }
+
+  public long getKafkaSendTimeoutMs() {
+    return kafkaSendTimeoutMs;
+  }
+
+  public void setKafkaSendTimeoutMs(long kafkaSendTimeoutMs) {
+    this.kafkaSendTimeoutMs = kafkaSendTimeoutMs;
   }
 }
