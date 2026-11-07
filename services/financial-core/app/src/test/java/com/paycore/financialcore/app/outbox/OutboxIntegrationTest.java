@@ -38,6 +38,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 @TestPropertySource(
     properties = {
       "paycore.outbox.scheduled=false",
+      "paycore.outbox.transport=test",
       "paycore.outbox.batch-size=100",
       "paycore.outbox.retry-base-ms=1",
       "paycore.outbox.retry-max-ms=10",

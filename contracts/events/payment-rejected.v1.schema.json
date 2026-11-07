@@ -1,0 +1,104 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://paycore.local/contracts/events/payment-rejected.v1.schema.json",
+  "title": "PaymentRejected v1",
+  "description": "Evento publicado quando um pagamento é rejeitado por regra de negócio (por exemplo, saldo insuficiente). Versão 1: contrato imutável; qualquer mudança exige uma nova versão e um novo tópico.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "event_id",
+    "event_type",
+    "event_version",
+    "occurred_at",
+    "correlation_id",
+    "aggregate",
+    "data"
+  ],
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Identificador do evento (id da linha de outbox). Base para deduplicação no consumidor."
+    },
+    "event_type": {
+      "const": "payment.rejected"
+    },
+    "event_version": {
+      "const": 1
+    },
+    "occurred_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Instante em que o evento foi registrado no outbox (UTC)."
+    },
+    "correlation_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Correlação ponta a ponta com a requisição que originou o pagamento."
+    },
+    "aggregate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "id"],
+      "properties": {
+        "type": {
+          "const": "payment"
+        },
+        "id": {
+          "type": "string",
+          "format": "uuid",
+          "description": "Identificador da transferência/pagamento. Também é a chave de partição do Kafka."
+        }
+      }
+    },
+    "data": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "transferId",
+        "state",
+        "sourceAccountId",
+        "destinationAccountId",
+        "amount",
+        "currency",
+        "correlationId",
+        "failureReason"
+      ],
+      "properties": {
+        "transferId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "state": {
+          "const": "REJECTED"
+        },
+        "sourceAccountId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "destinationAccountId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "amount": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Valor em unidades mínimas da moeda (centavos)."
+        },
+        "currency": {
+          "type": "string",
+          "pattern": "^[A-Z]{3}$"
+        },
+        "correlationId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "failureReason": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Motivo de negócio da rejeição; não é uma falha técnica."
+        }
+      }
+    }
+  }
+}
