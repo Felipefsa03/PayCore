@@ -7,6 +7,7 @@ import com.paycore.financialcore.ledger.JournalEntry;
 import com.paycore.financialcore.app.idempotency.IdempotencyRecord;
 import com.paycore.financialcore.app.idempotency.IdempotencyService;
 import com.paycore.financialcore.ledger.LedgerService;
+import com.paycore.financialcore.payments.OutboxEventService;
 import com.paycore.financialcore.payments.Transfer;
 import com.paycore.financialcore.payments.TransferRepository;
 import java.security.MessageDigest;
@@ -22,16 +23,19 @@ public class TransferService {
   private final TransferRepository transfers;
   private final LedgerService ledger;
   private final IdempotencyService idempotency;
+  private final OutboxEventService outbox;
 
   public TransferService(
       AccountRepository accounts,
       TransferRepository transfers,
       LedgerService ledger,
-      IdempotencyService idempotency) {
+      IdempotencyService idempotency,
+      OutboxEventService outbox) {
     this.accounts = accounts;
     this.transfers = transfers;
     this.ledger = ledger;
     this.idempotency = idempotency;
+    this.outbox = outbox;
   }
 
   @Transactional
@@ -110,6 +114,13 @@ public class TransferService {
       if (source.getOverdraftPolicy() == Account.OverdraftPolicy.FORBIDDEN && sourceBalance < amount) {
         transfer.reject("insufficient_funds");
         Transfer saved = transfers.saveAndFlush(transfer);
+        outbox.append(
+            "transfer",
+            saved.getId(),
+            "transfer.rejected",
+            1,
+            transferPayload(saved),
+            saved.getCorrelationId());
         idempotency.complete(record, saved.getId(), snapshot(saved));
         return saved;
       }
@@ -120,6 +131,13 @@ public class TransferService {
       JournalEntry journal = ledger.record(transfer.getId(), source.getId(), destination.getId(), amount, currency);
       transfer.complete(journal.getId());
       Transfer saved = transfers.saveAndFlush(transfer);
+      outbox.append(
+          "transfer",
+          saved.getId(),
+          "transfer.completed",
+          1,
+          transferPayload(saved),
+          saved.getCorrelationId());
       idempotency.complete(record, saved.getId(), snapshot(saved));
       return saved;
     } catch (RuntimeException exception) {
@@ -145,5 +163,29 @@ public class TransferService {
 
   private static String snapshot(Transfer transfer) {
     return "{\"transferId\":\"" + transfer.getId() + "\",\"state\":\"" + transfer.getState() + "\"}";
+  }
+
+  /**
+   * Payload do evento de domínio. Os campos são UUIDs, números e enums
+   * controlados, por isso a montagem textual é segura e dispensa serializador
+   * no módulo de pagamentos.
+   */
+  private static String transferPayload(Transfer transfer) {
+    StringBuilder payload = new StringBuilder();
+    payload.append("{\"transferId\":\"").append(transfer.getId()).append('"');
+    payload.append(",\"state\":\"").append(transfer.getState()).append('"');
+    payload.append(",\"sourceAccountId\":\"").append(transfer.getSourceAccountId()).append('"');
+    payload.append(",\"destinationAccountId\":\"").append(transfer.getDestinationAccountId()).append('"');
+    payload.append(",\"amount\":").append(transfer.getAmount());
+    payload.append(",\"currency\":\"").append(transfer.getCurrency()).append('"');
+    payload.append(",\"correlationId\":\"").append(transfer.getCorrelationId()).append('"');
+    if (transfer.getJournalEntryId() != null) {
+      payload.append(",\"journalEntryId\":\"").append(transfer.getJournalEntryId()).append('"');
+    }
+    if (transfer.getFailureReason() != null) {
+      payload.append(",\"failureReason\":\"").append(transfer.getFailureReason()).append('"');
+    }
+    payload.append('}');
+    return payload.toString();
   }
 }
