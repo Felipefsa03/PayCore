@@ -11,6 +11,7 @@ documento declara status, data, dependências e missão no cabeçalho.
 | [Requisitos, invariantes e glossário](requirements/requisitos-invariantes-glossario.md) | RF-01..RF-12, RNFs mensuráveis, I-01..I-08 e vocabulário de domínio | Em revisão |
 | [Modelo de domínio e estados da transferência](architecture/modelo-dominio-estados-transferencia.md) | Entidades, máquina de estados, erros e contrato OpenAPI | Em revisão |
 | [Autenticação e autorização de contas](architecture/autenticacao-e-autorizacao-contas.md) | JWT, autorização por proprietário e roteiro de validação cruzada | Implementado |
+| [Transactional Outbox na transação do pagamento](architecture/transactional-outbox.md) | Evento de domínio atômico, publicador com retry, `SKIP LOCKED` e semântica at-least-once | Implementado |
 
 ## Decisões e segurança
 
