@@ -1,0 +1,411 @@
+openapi: 3.0.0
+paths:
+  /health:
+    get:
+      operationId: health
+      parameters:
+        - name: X-Correlation-Id
+          in: header
+          required: false
+          description: Identificador de correlação (1-100 caracteres seguros). Gerado quando ausente e devolvido no cabeçalho da resposta.
+          schema:
+            type: string
+            maxLength: 100
+      responses:
+        "200":
+          description: Serviço vivo.
+          content:
+            application/json:
+              schema:
+                example:
+                  status: ok
+                  service: integration-api
+      summary: Verificação de liveness
+      tags:
+        - Health
+  /v1/transactions/{transactionId}:
+    get:
+      description: Consulta o núcleo financeiro com um JWT de curta duração do proprietário do parceiro. Transações de outro parceiro retornam 404.
+      operationId: getTransaction
+      parameters:
+        - name: transactionId
+          required: true
+          in: path
+          schema:
+            format: uuid
+            type: string
+        - name: X-Correlation-Id
+          in: header
+          required: false
+          description: Identificador de correlação (1-100 caracteres seguros). Gerado quando ausente e devolvido no cabeçalho da resposta.
+          schema:
+            type: string
+            maxLength: 100
+      responses:
+        "200":
+          description: Transação encontrada.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TransactionResponse"
+        "400":
+          description: Identificador de transação inválido.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Credencial ausente ou inválida.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Transação não encontrada para o parceiro autenticado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Limite de requisições excedido.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "503":
+          description: Núcleo financeiro indisponível.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+        - partnerApiKey: []
+      summary: Consultar uma transação do parceiro e seu estado
+      tags:
+        - Transactions
+  /v1/webhooks:
+    post:
+      description: O segredo HMAC é devolvido apenas nesta resposta. Cada parceiro só enxerga os próprios webhooks.
+      operationId: createWebhook
+      parameters:
+        - name: X-Correlation-Id
+          in: header
+          required: false
+          description: Identificador de correlação (1-100 caracteres seguros). Gerado quando ausente e devolvido no cabeçalho da resposta.
+          schema:
+            type: string
+            maxLength: 100
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateWebhookRequest"
+      responses:
+        "201":
+          description: Webhook criado; o segredo é devolvido apenas nesta resposta.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebhookCreatedResponse"
+        "400":
+          description: Corpo inválido.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Credencial ausente ou inválida.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Limite de requisições excedido.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security: &a1
+        - partnerApiKey: []
+      summary: Cadastrar webhook do parceiro
+      tags: &a2
+        - Webhooks
+    get:
+      operationId: listWebhooks
+      parameters:
+        - name: X-Correlation-Id
+          in: header
+          required: false
+          description: Identificador de correlação (1-100 caracteres seguros). Gerado quando ausente e devolvido no cabeçalho da resposta.
+          schema:
+            type: string
+            maxLength: 100
+      responses:
+        "200":
+          description: Webhooks do parceiro.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/WebhookResponse"
+        "401":
+          description: Credencial ausente ou inválida.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Limite de requisições excedido.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security: *a1
+      summary: Listar webhooks do parceiro autenticado
+      tags: *a2
+  /v1/webhooks/{webhookId}:
+    delete:
+      operationId: deleteWebhook
+      parameters:
+        - name: webhookId
+          required: true
+          in: path
+          schema:
+            format: uuid
+            type: string
+        - name: X-Correlation-Id
+          in: header
+          required: false
+          description: Identificador de correlação (1-100 caracteres seguros). Gerado quando ausente e devolvido no cabeçalho da resposta.
+          schema:
+            type: string
+            maxLength: 100
+      responses:
+        "204":
+          description: Webhook removido.
+        "401":
+          description: Credencial ausente ou inválida.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Webhook não encontrado para o parceiro autenticado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Limite de requisições excedido.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security: *a1
+      summary: Remover webhook do parceiro autenticado
+      tags: *a2
+info:
+  title: PayCore Integration API
+  description: API de integração para parceiros simulados do PayCore. Autenticação por API key (`X-Api-Key`); cada parceiro enxerga apenas as próprias transações e webhooks.
+  version: 0.1.0
+  contact: {}
+  license:
+    name: UNLICENSED
+    url: https://example.invalid/license
+tags:
+  - name: Transactions
+    description: Consulta de transações do parceiro (RF-08).
+  - name: Webhooks
+    description: Cadastro de webhooks do parceiro (RF-11).
+  - name: Health
+    description: Liveness do serviço.
+servers:
+  - url: http://localhost:3000
+    description: Ambiente local do laboratório
+components:
+  securitySchemes:
+    partnerApiKey:
+      type: apiKey
+      in: header
+      name: X-Api-Key
+      description: API key do parceiro simulada.
+  schemas:
+    TransactionResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        state:
+          type: string
+          enum:
+            - RECEIVED
+            - VALIDATING
+            - PROCESSING
+            - COMPLETED
+            - REJECTED
+            - FAILED
+        amount:
+          type: integer
+          minimum: 1
+          description: Valor em centavos
+        currency:
+          type: string
+          pattern: ^[A-Z]{3}$
+          example: BRL
+        sourceAccountId:
+          type: string
+          format: uuid
+        destinationAccountId:
+          type: string
+          format: uuid
+        failureReason:
+          type: string
+          nullable: true
+        journalEntryId:
+          type: string
+          format: uuid
+          nullable: true
+        correlationId:
+          type: string
+          format: uuid
+          description: Correlação original da transferência
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - state
+        - amount
+        - currency
+        - sourceAccountId
+        - destinationAccountId
+        - failureReason
+        - journalEntryId
+        - correlationId
+        - createdAt
+        - updatedAt
+    ErrorResponse:
+      type: object
+      properties:
+        code:
+          type: string
+          example: validation_error
+        message:
+          type: string
+          example: Requisição inválida.
+        details:
+          type: object
+          additionalProperties: true
+          description: "Detalhes específicos do erro (ex.: campos inválidos)."
+        correlationId:
+          type: string
+          format: uuid
+          description: Correlação da requisição, também devolvida em X-Correlation-Id.
+      required:
+        - code
+        - message
+        - correlationId
+    CreateWebhookRequest:
+      type: object
+      properties:
+        url:
+          type: string
+          example: https://parceiro.example/webhooks/paycore
+          maxLength: 2048
+          description: URL HTTP(S) que receberá as notificações assinadas.
+        eventTypes:
+          type: array
+          example:
+            - payment.completed
+            - payment.rejected
+          items:
+            type: string
+            enum:
+              - payment.completed
+              - payment.rejected
+        description:
+          type: string
+          maxLength: 200
+          example: Webhook do parceiro Alpha
+      required:
+        - url
+        - eventTypes
+    WebhookCreatedResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        url:
+          type: string
+          example: https://parceiro.example/webhooks/paycore
+        eventTypes:
+          type: array
+          items: &a3
+            type: string
+            enum:
+              - payment.completed
+              - payment.rejected
+        description:
+          type: string
+          nullable: true
+          maxLength: 200
+        active:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        secret:
+          type: string
+          description: Segredo HMAC devolvido apenas na criação. Use-o para verificar a assinatura das entregas.
+          example: whsec_exemplo
+      required:
+        - id
+        - url
+        - eventTypes
+        - description
+        - active
+        - createdAt
+        - updatedAt
+        - secret
+    WebhookResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        url:
+          type: string
+          example: https://parceiro.example/webhooks/paycore
+        eventTypes:
+          type: array
+          items: *a3
+        description:
+          type: string
+          nullable: true
+          maxLength: 200
+        active:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - url
+        - eventTypes
+        - description
+        - active
+        - createdAt
+        - updatedAt

@@ -1,0 +1,59 @@
+name: integration-api CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "services/integration-api/**"
+      - "contracts/openapi/integration-api.yaml"
+      - ".github/workflows/integration-api-ci.yml"
+  pull_request:
+    paths:
+      - "services/integration-api/**"
+      - "contracts/openapi/integration-api.yaml"
+      - ".github/workflows/integration-api-ci.yml"
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/integration-api
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: paycore
+          POSTGRES_PASSWORD: paycore
+          POSTGRES_DB: paycore_it
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U paycore -d paycore_it"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      PAYCORE_INTEGRATION_DB_URL: postgresql://paycore:paycore@127.0.0.1:5432/paycore_it
+      PAYCORE_INTEGRATION_DB_SCHEMA: integration_api_test
+      PAYCORE_AUTH_JWT_SECRET: paycore-lab-ci-only-secret-0123456789abcdef
+      PAYCORE_AUTH_JWT_ISSUER: paycore-lab
+      PAYCORE_ALLOW_EMPTY_PARTNERS: "0"
+      PAYCORE_PARTNERS: >-
+        [{"id":"ci-partner","name":"CI Partner","apiKey":"ci-test-key-0001",
+        "ownerId":"11111111-1111-4111-8111-111111111111"}]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: services/integration-api/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck, integration tests, OpenAPI and build
+        run: npm run check

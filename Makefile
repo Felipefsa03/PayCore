@@ -7,12 +7,13 @@ SHELL := /bin/sh
 .DEFAULT_GOAL := help
 
 SERVICE_DIR := services/financial-core
+INTEGRATION_API_DIR := services/integration-api
 MVN ?= ./mvnw
 COMPOSE ?= docker compose -f infrastructure/docker/docker-compose.yml
 PYTHON ?= python3
 DOCS_CHECK := scripts/check-docs-links.py
 
-.PHONY: help up down logs reset build test test-unit test-integration lint docs-check security-check coverage-summary run clean verify
+.PHONY: help up down logs reset build test test-unit test-integration lint docs-check security-check coverage-summary run clean verify integration-api-install integration-api-check
 
 help: ## Lista os alvos disponíveis
 	@printf 'PayCore — alvos disponíveis:\n\n'
@@ -72,3 +73,9 @@ run: build ## Compila e inicia a API em :8080 (requer PostgreSQL)
 
 clean: ## Limpa artefatos de build
 	cd $(SERVICE_DIR) && $(MVN) -B clean
+
+integration-api-install: ## Instala dependências da Integration API (npm ci)
+	cd $(INTEGRATION_API_DIR) && npm ci
+
+integration-api-check: ## Gate da Integration API (requer PAYCORE_INTEGRATION_DB_URL)
+	cd $(INTEGRATION_API_DIR) && npm run check

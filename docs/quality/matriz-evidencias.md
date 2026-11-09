@@ -4,9 +4,9 @@
 | ----- | ----- |
 | Status | Vigente |
 | Autor | Luis Felipe (com apoio de execução via Gartrol/OpenCode) |
-| Data | 2026-11-06 |
+| Data | 2026-11-09 |
 | Depende de | [Estratégia de testes](estrategia-de-testes.md), [Requisitos e invariantes](../requirements/requisitos-invariantes-glossario.md), [RFC-001](../rfc/RFC-001-visao-e-arquitetura-inicial.md) |
-| Missão | M1 — Fundação arquitetural |
+| Missão | M1–M3 |
 
 Legenda de status: **Implementado** = teste existe e roda no gate; **Parcial** = existe, mas não cobre todo o requisito; **Planejado** = requisito de milestone futura, sem teste ainda.
 
@@ -46,6 +46,12 @@ Legenda de status: **Implementado** = teste existe e roda no gate; **Parcial** =
 
 ### 2.2 Integração
 
+A Integration API em TypeScript tem sua própria suíte de integração em
+`services/integration-api/test/integration`. Ela usa PostgreSQL real e um stub HTTP do
+núcleo financeiro, cobrindo: consulta da própria transação, isolamento entre dois parceiros,
+validação de DTOs, rate limit, correlação, segredo de webhook e contrato OpenAPI. Evidência:
+`npm run check` (13 testes) executada pelo workflow `integration-api-ci.yml`.
+
 | Teste | Arquivo | Regra provada | IDs | Status |
 | ----- | ------- | ------------- | --- | ------ |
 | `rejectsRequestWithoutToken` | `app/.../AccountApiIntegrationTest.java` | Endpoint exige autenticação | RNF-06, T-01 | Implementado |
@@ -68,15 +74,15 @@ Legenda de status: **Implementado** = teste existe e roda no gate; **Parcial** =
 | -- | --------- | ----------- | ----- | ------ |
 | RF-01 | Criar contas | Integração/unitário | `createsAccountOwnedByTheTokenSubject`, `createsAccountWithOwnerFromTheCaller` | Implementado |
 | RF-02 | Consultar saldo e histórico | Integração | `computesBalanceFromPostingsAndPaginatesHistory` | Implementado |
-| RF-03 | Transferir valores | n/a | — | Planejado (M2) |
-| RF-04 | Lançamentos balanceados | n/a | — | Planejado (M2) |
-| RF-05 | Idempotência | n/a | — | Planejado (M2) |
-| RF-06 | Eventos de pagamento | n/a | — | Planejado (M3) |
-| RF-07 | Consumidores idempotentes | n/a | — | Planejado (M3) |
-| RF-08 | Consultar transações/estados | n/a | — | Planejado (M2) |
+| RF-03 | Transferir valores | Integração | `completesTransferAndUpdatesBalances` | Implementado |
+| RF-04 | Lançamentos balanceados | Integração | `completesTransferAndUpdatesBalances` (journal balanceado) | Implementado |
+| RF-05 | Idempotência | Integração | `replaysSameTransferForSameKeyAndPayload`, `concurrentSameKeyCreatesSingleTransfer` | Implementado |
+| RF-06 | Eventos de pagamento | Integração | `publishesCompletedEventToVersionedTopicKeyedByPayment`, `publishesRejectedEventToVersionedTopicKeyedByPayment` | Implementado |
+| RF-07 | Consumidores idempotentes | Integração | `processesDeliveryOnceAndIgnoresTheDuplicate`, `duplicateDeliveriesCreateOnlyOneSettlement` | Implementado |
+| RF-08 | Consultar transações/estados | Integração | `consulta a própria transação e propaga a correlação ao núcleo`; `completesTransferAndUpdatesBalances` | Implementado |
 | RF-09 | Avaliar risco | n/a | — | Planejado (M4) |
 | RF-10 | Conciliação | n/a | — | Planejado (M4) |
-| RF-11 | Webhooks | n/a | — | Planejado (M3) |
+| RF-11 | Webhooks | Integração | `cadastra webhook devolvendo o segredo apenas na criação`, `isola listagem e remoção por parceiro` | Parcial (cadastro e isolamento; entrega assinada no próximo card) |
 | RF-12 | Métricas e auditoria | n/a | — | Planejado (M5) |
 
 ### 3.2 Requisitos não funcionais

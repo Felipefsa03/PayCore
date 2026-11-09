@@ -22,7 +22,8 @@ sem um teste real para colocar nelas.
 | Unitário | `services/financial-core/*/src/test` | `make test-unit` |
 | Integração com Postgres real | `services/financial-core/app/src/test` | `make test-integration` |
 | Gate completo (CI) | Todo o monorepo | `make test` |
-| Contrato OpenAPI | `contracts/openapi/financial-core.yaml` | `npx @redocly/cli lint ...` |
+| Integração da Integration API (NestJS + Postgres + stub HTTP) | `services/integration-api/test` | `make integration-api-check` |
+| Contrato OpenAPI | `contracts/openapi/financial-core.yaml` e `contracts/openapi/integration-api.yaml` | `npx @redocly/cli lint ...` e `npm run openapi:check` |
 
 Os testes de integração usam Testcontainers por padrão. Sem Docker, defina
 `PAYCORE_IT_JDBC_URL`, `PAYCORE_IT_DB_USER` e `PAYCORE_IT_DB_PASSWORD` para reutilizar um
