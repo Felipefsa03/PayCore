@@ -20,7 +20,7 @@ o que foi provado e o que ficou pendente** sem depender de conversas ou históri
 | --------- | ---- | ------ |
 | M1 | Fundação arquitetural | [Demonstração](M1-demonstracao.md), [Checklist](M1-checklist.md), [Retrospectiva](M1-retrospectiva.md) |
 | M2 | Núcleo de pagamentos e ledger | Planejado |
-| M3 | Assincronia, integração e conciliação | Planejado |
+| M3 | Assincronia, integração e conciliação | [Demonstração](M3-demonstracao.md), [Checklist](M3-checklist.md), [Retrospectiva](M3-retrospectiva.md) |
 | M4 | Risco, conciliação e serviços satélites | Planejado |
 | M5 | Operação, observabilidade e segurança | Planejado |
 | M6 | Resiliência, escala e release de portfólio | Planejado |
