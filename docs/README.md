@@ -16,6 +16,7 @@ documento declara status, data, dependências e missão no cabeçalho.
 | [Consumidor idempotente, inbox e replay](architecture/inbox-idempotencia-replay.md) | Deduplicação por `event_id`, efeito financeiro idempotente, replay auditável e configuração do listener | Implementado |
 | [Integration API para parceiros simulados](architecture/integration-api-parceiros.md) | API key, JWT de borda, isolamento entre parceiros, webhooks, rate limit, correlação e OpenAPI | Implementado |
 | [Webhooks confiáveis: HMAC, retry e DLQ](architecture/webhooks-entrega-assinada.md) | Assinatura com timestamp, fila durável, retry/backoff, DLQ, histórico e reenvio manual | Implementado |
+| [Reconciliação: importação idempotente de extratos CSV](architecture/reconciliacao-importacao-idempotente.md) | Idempotência por hash de arquivo, classificação de divergências e armazenamento seguro | Implementado |
 
 ## Decisões e segurança
 

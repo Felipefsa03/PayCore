@@ -18,7 +18,7 @@ from urllib.parse import unquote
 LINK = re.compile(r"!?\[[^\]]*\]\(([^)]+)\)")
 REFERENCE = re.compile(r"^\s*\[[^\]]+\]:\s*(\S+)")
 FENCE = re.compile(r"^\s*(```|~~~)")
-EXCLUDED_DIRS = {".git", "node_modules", "target", "dist", "build"}
+EXCLUDED_DIRS = {".git", "node_modules", "target", "dist", "build", "vendor"}
 
 
 def strip_code_fences(text: str) -> str:

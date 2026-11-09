@@ -8,12 +8,14 @@ SHELL := /bin/sh
 
 SERVICE_DIR := services/financial-core
 INTEGRATION_API_DIR := services/integration-api
+RECONCILIATION_DIR := services/reconciliation
 MVN ?= ./mvnw
 COMPOSE ?= docker compose -f infrastructure/docker/docker-compose.yml
 PYTHON ?= python3
+COMPOSER ?= composer
 DOCS_CHECK := scripts/check-docs-links.py
 
-.PHONY: help up down logs reset build test test-unit test-integration lint docs-check security-check coverage-summary run clean verify integration-api-install integration-api-check
+.PHONY: help up down logs reset build test test-unit test-integration lint docs-check security-check coverage-summary run clean verify integration-api-install integration-api-check reconciliation-install reconciliation-check
 
 help: ## Lista os alvos disponíveis
 	@printf 'PayCore — alvos disponíveis:\n\n'
@@ -79,3 +81,11 @@ integration-api-install: ## Instala dependências da Integration API (npm ci)
 
 integration-api-check: ## Gate da Integration API (requer PAYCORE_INTEGRATION_DB_URL)
 	cd $(INTEGRATION_API_DIR) && npm run check
+
+reconciliation-install: ## Instala dependências da Reconciliation (composer install)
+	cd $(RECONCILIATION_DIR) && $(COMPOSER) install
+
+reconciliation-check: ## Gate da Reconciliation: platform reqs, Pint e testes
+	cd $(RECONCILIATION_DIR) && $(COMPOSER) check-platform-reqs --no-dev -q
+	cd $(RECONCILIATION_DIR) && ./vendor/bin/pint --test
+	cd $(RECONCILIATION_DIR) && php artisan test

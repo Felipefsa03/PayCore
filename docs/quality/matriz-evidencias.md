@@ -6,7 +6,7 @@
 | Autor | Luis Felipe (com apoio de execução via Gartrol/OpenCode) |
 | Data | 2026-11-09 |
 | Depende de | [Estratégia de testes](estrategia-de-testes.md), [Requisitos e invariantes](../requirements/requisitos-invariantes-glossario.md), [RFC-001](../rfc/RFC-001-visao-e-arquitetura-inicial.md) |
-| Missão | M1–M3 |
+| Missão | M1–M4 |
 
 Legenda de status: **Implementado** = teste existe e roda no gate; **Parcial** = existe, mas não cobre todo o requisito; **Planejado** = requisito de milestone futura, sem teste ainda.
 
@@ -54,6 +54,15 @@ correlação, segredo de webhook, contrato OpenAPI, entrega assinada, HTTP 500, 
 retry, DLQ, reenvio manual auditável, evento repetido e bloqueio de destinos privados.
 Evidência: `npm run check` (23 testes) executada pelo workflow `integration-api-ci.yml`.
 
+A Reconciliation em PHP/Laravel (`services/reconciliation`) tem sua suíte em
+`services/reconciliation/tests`. Cobre: importação de um arquivo com os cinco tipos de
+divergência (`duplicate_in_file`, `mismatch`, `missing_in_ledger`, `missing_in_statement`,
+`invalid_row`), reimportação idempotente do mesmo arquivo (mesmo hash), referência repetida
+dentro de um único arquivo, rejeição de requisição sem API key e parsing de CSV malformado.
+Evidência: `php artisan test` (7 testes) executada pelo workflow `reconciliation-ci.yml`.
+Detalhe do desenho em
+[`architecture/reconciliacao-importacao-idempotente.md`](../architecture/reconciliacao-importacao-idempotente.md).
+
 | Teste | Arquivo | Regra provada | IDs | Status |
 | ----- | ------- | ------------- | --- | ------ |
 | `rejectsRequestWithoutToken` | `app/.../AccountApiIntegrationTest.java` | Endpoint exige autenticação | RNF-06, T-01 | Implementado |
@@ -83,7 +92,7 @@ Evidência: `npm run check` (23 testes) executada pelo workflow `integration-api
 | RF-07 | Consumidores idempotentes | Integração | `processesDeliveryOnceAndIgnoresTheDuplicate`, `duplicateDeliveriesCreateOnlyOneSettlement` | Implementado |
 | RF-08 | Consultar transações/estados | Integração | `consulta a própria transação e propaga a correlação ao núcleo`; `completesTransferAndUpdatesBalances` | Implementado |
 | RF-09 | Avaliar risco | n/a | — | Planejado (M4) |
-| RF-10 | Conciliação | n/a | — | Planejado (M4) |
+| RF-10 | Conciliação | Integração (PHPUnit) | `it_imports_a_statement_and_classifies_every_divergence`, `reimporting_the_same_file_is_idempotent`, `a_file_with_an_internal_duplicate_flags_it_without_double_counting_matches` | Implementado |
 | RF-11 | Webhooks | Integração | `cadastra webhook devolvendo o segredo apenas na criação`, `entrega o envelope assinado, registra tentativa e expõe histórico`, `move para a DLQ, lista o dead-letter e reenvia manualmente com auditoria` | Implementado |
 | RF-12 | Métricas e auditoria | n/a | — | Planejado (M5) |
 
