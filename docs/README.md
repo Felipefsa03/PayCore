@@ -11,6 +11,11 @@ documento declara status, data, dependências e missão no cabeçalho.
 | [Requisitos, invariantes e glossário](requirements/requisitos-invariantes-glossario.md) | RF-01..RF-12, RNFs mensuráveis, I-01..I-08 e vocabulário de domínio | Em revisão |
 | [Modelo de domínio e estados da transferência](architecture/modelo-dominio-estados-transferencia.md) | Entidades, máquina de estados, erros e contrato OpenAPI | Em revisão |
 | [Autenticação e autorização de contas](architecture/autenticacao-e-autorizacao-contas.md) | JWT, autorização por proprietário e roteiro de validação cruzada | Implementado |
+| [Transactional Outbox na transação do pagamento](architecture/transactional-outbox.md) | Evento de domínio atômico, publicador com retry, `SKIP LOCKED` e semântica at-least-once | Implementado |
+| [Kafka, tópicos versionados e contratos de eventos](architecture/kafka-eventos-versionados.md) | Publicação `payment.completed`/`payment.rejected`, partição por pagamento e evolução de schema | Implementado |
+| [Consumidor idempotente, inbox e replay](architecture/inbox-idempotencia-replay.md) | Deduplicação por `event_id`, efeito financeiro idempotente, replay auditável e configuração do listener | Implementado |
+| [Integration API para parceiros simulados](architecture/integration-api-parceiros.md) | API key, JWT de borda, isolamento entre parceiros, webhooks, rate limit, correlação e OpenAPI | Implementado |
+| [Webhooks confiáveis: HMAC, retry e DLQ](architecture/webhooks-entrega-assinada.md) | Assinatura com timestamp, fila durável, retry/backoff, DLQ, histórico e reenvio manual | Implementado |
 
 ## Decisões e segurança
 
@@ -40,7 +45,8 @@ revisados a cada milestone que altere ativos, fronteiras ou invariantes.
 | Documento | Conteúdo | Status |
 | --------- | -------- | ------ |
 | [Índice de milestones](milestones/README.md) | Pacote mínimo exigido por milestone | Vigente |
-| Demonstração, checklist e retrospectiva da M1 | Prova reproduzível da fundação arquitetural | Planejado (M1) |
+| Demonstração, checklist e retrospectiva da M1 | Prova reproduzível da fundação arquitetural | Implementado (M1) |
+| Demonstração, checklist e retrospectiva da M3 | Prova reproduzível da assincronia, integração e webhooks | Implementado (M3) |
 
 ## Estudos de caso
 

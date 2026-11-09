@@ -1,0 +1,70 @@
+{
+  "name": "@paycore/integration-api",
+  "version": "0.1.0",
+  "private": true,
+  "description": "API de integração para parceiros simulados do PayCore",
+  "license": "UNLICENSED",
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "start": "node dist/main.js",
+    "start:dev": "ts-node src/main.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "jest --runInBand",
+    "openapi:generate": "ts-node scripts/generate-openapi.ts",
+    "openapi:check": "ts-node scripts/generate-openapi.ts --check",
+    "check": "npm run typecheck && npm run test && npm run openapi:check && npm run build"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "@nestjs/common": "11.2.9",
+    "@nestjs/core": "11.2.9",
+    "@nestjs/platform-express": "11.2.9",
+    "@nestjs/swagger": "11.4.8",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.15.1",
+    "ipaddr.js": "^2.5.0",
+    "kafkajs": "^2.2.4",
+    "pg": "^8.23.1",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.2",
+    "yaml": "^2.9.1"
+  },
+  "devDependencies": {
+    "@nestjs/testing": "11.2.9",
+    "@types/express": "^5.0.6",
+    "@types/jest": "^30.0.0",
+    "@types/node": "^24.0.0",
+    "@types/pg": "^8.23.1",
+    "@types/supertest": "^7.2.1",
+    "jest": "^30.5.2",
+    "supertest": "^7.3.2",
+    "ts-jest": "^29.4.15",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3"
+  },
+  "jest": {
+    "moduleFileExtensions": [
+      "js",
+      "json",
+      "ts"
+    ],
+    "rootDir": ".",
+    "testRegex": "test/integration/.*\\.e2e-spec\\.ts$",
+    "transform": {
+      "^.+\\.ts$": [
+        "ts-jest",
+        {
+          "tsconfig": "tsconfig.json"
+        }
+      ]
+    },
+    "setupFiles": [
+      "<rootDir>/test/setup-env.ts"
+    ],
+    "testEnvironment": "node",
+    "testTimeout": 30000,
+    "clearMocks": true
+  }
+}

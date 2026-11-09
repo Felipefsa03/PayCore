@@ -5,8 +5,10 @@ engenharia de software. O núcleo atual é um **monólito modular em Java/Spring
 PostgreSQL como fonte única da verdade contábil; serviços satélites poliglotas entram nas
 milestones seguintes, apenas onde a tecnologia resolve um problema real.
 
-> Estado atual: **M1 — Fundação arquitetural**. Contas com autenticação/autorização por
-> proprietário já estão implementadas; transferências e ledger entram no M2.
+> Estado atual: **M3 — Mensageria e integrações (em andamento)**. Contas, transferências,
+> ledger, outbox transacional, eventos Kafka versionados, consumidor idempotente e a
+> Integration API em NestJS com webhooks assinados, retry e DLQ já estão implementados. A
+> demo e a retrospectiva do milestone entram no card seguinte.
 
 ## Por onde começar
 
@@ -29,8 +31,9 @@ milestones seguintes, apenas onde a tecnologia resolve um problema real.
 ├── docs/                 # RFCs, ADRs, arquitetura, requisitos, qualidade e milestones
 ├── infrastructure/       # Docker Compose e, nas próximas milestones, IaC
 ├── scripts/              # Automação de apoio ao repositório
-├── services/             # Serviços executáveis (hoje: financial-core)
-│   └── financial-core/   # Monólito modular Java (shared, accounts, ledger, payments, app)
+├── services/             # Serviços executáveis
+│   ├── financial-core/   # Monólito modular Java (shared, accounts, ledger, payments, app)
+│   └── integration-api/  # Borda TypeScript/NestJS para parceiros e webhooks
 ├── tests/                # Testes transversais: contrato, e2e e desempenho
 ├── Makefile              # Entrada única para as tarefas do laboratório
 └── README.md
@@ -42,6 +45,7 @@ sem introduzir consistência distribuída no núcleo contábil (RFC-001 §6–§
 ## Pré-requisitos
 
 - **Java 21** (o build usa o Maven Wrapper; não é necessário instalar Maven).
+- **Node.js 22+** para a Integration API em `services/integration-api`.
 - **Docker com Compose v2** para subir o PostgreSQL local com `make up`.
 - **Python 3** apenas para `make docs-check`.
 - Alternativa sem Docker: aponte os testes de integração para um PostgreSQL existente com
@@ -53,6 +57,7 @@ sem introduzir consistência distribuída no núcleo contábil (RFC-001 §6–§
 make help          # lista os alvos disponíveis
 make up            # sobe o PostgreSQL local (Docker Compose)
 make test          # gate completo: compilação, Checkstyle, testes unitários e de integração
+make integration-api-check  # typecheck, testes, OpenAPI e build da Integration API
 make run           # inicia a API em http://localhost:8080 (requer PostgreSQL)
 make docs-check         # valida links relativos da documentação
 make security-check     # valida dono, mitigação e risco residual do modelo de ameaças
@@ -74,6 +79,20 @@ make lint              # Checkstyle
 - `GET /accounts/{id}` e `GET /accounts/{id}/postings` só retornam dados do proprietário.
 - Erros seguem o envelope estável de [`contracts/openapi/financial-core.yaml`](contracts/openapi/financial-core.yaml).
 - O contrato OpenAPI é validado por lint e gera tipos TypeScript reproduzíveis.
+
+A **Integration API** (`services/integration-api`) expõe:
+
+- `GET /v1/transactions/{id}` — parceiro consulta a própria transação, com JWT de curta
+  duração cunhado para o seu `ownerId` e correlação propagada ao núcleo;
+- `POST/GET/DELETE /v1/webhooks` — cadastro, listagem e remoção de webhooks por parceiro,
+  com segredo HMAC devolvido apenas na criação;
+- `GET /v1/webhook-deliveries` e `GET /v1/webhook-deliveries/{id}` — histórico e tentativas,
+  com a dead-letter queue em `status=dead`;
+- `POST /v1/webhook-deliveries/{id}/resend` — reenvio manual auditável de uma entrega na DLQ;
+- entregas assinadas com HMAC-SHA256 e timestamp, retry exponencial, timeout e bloqueio de
+  destinos privados na entrega;
+- autenticação por API key, validação de DTOs, rate limiting por parceiro e OpenAPI em
+  `contracts/openapi/integration-api.yaml` (`/docs` em execução).
 
 O roteiro completo de milestones está no RFC-001 e nos documentos de milestone em
 [`docs/milestones/`](docs/milestones/README.md).

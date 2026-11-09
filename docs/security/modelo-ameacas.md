@@ -4,9 +4,9 @@
 | ----- | ----- |
 | Status | Em revisão |
 | Autor | Luis Felipe (com apoio de execução via Gartrol/OpenCode) |
-| Data | 2026-11-06 |
+| Data | 2026-11-09 |
 | Depende de | [RFC-001](../rfc/RFC-001-visao-e-arquitetura-inicial.md), [Requisitos, invariantes e glossário](../requirements/requisitos-invariantes-glossario.md), [ADR-002](../adr/ADR-002-persistencia-postgresql.md) |
-| Missão | M1 — Fundação arquitetural |
+| Missão | M1–M3 (revisado na M3) |
 | Próxima revisão | M2 (transferências e ledger) e M3 (eventos e integrações) |
 
 ## Objetivo
@@ -127,6 +127,8 @@ uma decisão explícita de aceite e da condição que a revê.
 | T-22 | Reuso de chave de idempotência por outro proprietário ou replay após timeout | Idempotência / cliente→API | Média | Alto | P0 | Backend | Escopo da chave por proprietário; fingerprint; snapshot; TTL maior que a janela de retry; resposta original em repetição legítima | Planejado M2 | **Baixo** — aceito com testes de concorrência e replay. Revisar na M3 com eventos. |
 | T-23 | Valor negativo, overflow ou transferência sem limite explorar regras de saldo | Transferências / cliente→API | Média | Alto | P0 | Backend | `BIGINT` em centavos; `amount > 0`; limite por operação; validação de moeda; teste de borda; constraint no banco | Planejado M2 | **Baixo** — aceito com validação e constraint. Revisar ao alterar o modelo. |
 | T-24 | Bypass do motor de risco ou falha silenciosa que aprove operação suspeita | Risco / M4 | Média | Alto | P1 | Backend | Decisão obrigatória para operações elegíveis; falha do risco resulta em `REVIEW`/`REJECT`, nunca aprovação silenciosa; timeout e circuit breaker | Planejado M4 | **Médio** — aceito até a M4; revisar no desenho do motor. |
+| T-25 | SSRF: parceiro cadastra URL de webhook apontando para rede interna ou metadados | Webhooks / parceiro→integration-api | Média | Alto | P1 | Segurança | Validar esquema http(s), host obrigatório e ausência de credenciais no cadastro; na entrega resolver o host, aceitar apenas `unicast` público, desabilitar redirect, aplicar timeout e revalidar a URL; logs sem URL sensível; liberar rede privada apenas por flag de laboratório | Implementado | **Baixo no laboratório** — bloqueio ativo e coberto por teste; resta DNS rebinding entre resolução e conexão, aceito até existir conector que fixe o IP validado. Revisar antes de qualquer destino real. |
+| T-26 | Vazamento ou força bruta da API key de parceiro permitir acessar dados alheios | Identidade de parceiro / parceiro→integration-api | Média | Alto | P0 | Segurança | API key vinda de ambiente, comparação em tempo constante sobre SHA-256, nunca logada; rate limit por parceiro; JWT de borda curto com `sub` derivado da configuração do servidor | Implementado | **Baixo no laboratório** — aceito com chaves descartáveis e testes de isolamento. Revisar antes de ambiente compartilhado. |
 
 ## 4. Priorização e decisão de risco residual
 
@@ -169,10 +171,10 @@ o aceite e exige reavaliação antes de continuar:
 | Etapa | Resultado | Evidência |
 | ----- | --------- | --------- |
 | Revisar ativos e fronteiras | 8 ativos e 4 fronteiras mapeados | §2 |
-| Revisar ameaças STRIDE | 24 ameaças classificadas e priorizadas | §3 |
-| Registrar dono por ameaça | 24/24 com papel responsável | Coluna “Dono” |
-| Registrar mitigação por ameaça | 24/24 com controle e status | Coluna “Mitigação” |
-| Registrar risco residual aceito | 24/24 com decisão e condição de revisão | Última coluna + §4 |
+| Revisar ameaças STRIDE | 26 ameaças classificadas e priorizadas | §3 |
+| Registrar dono por ameaça | 26/26 com papel responsável | Coluna “Dono” |
+| Registrar mitigação por ameaça | 26/26 com controle e status | Coluna “Mitigação” |
+| Registrar risco residual aceito | 26/26 com decisão e condição de revisão | Última coluna + §4 |
 | Revisão humana | Pendente (validação do card) | Entrega no Gartrol |
 
 **Participantes da revisão:** Tech Lead, Backend, Plataforma, Segurança e Qualidade (papéis
