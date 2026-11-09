@@ -45,7 +45,8 @@ revisados a cada milestone que altere ativos, fronteiras ou invariantes.
 | Documento | Conteúdo | Status |
 | --------- | -------- | ------ |
 | [Índice de milestones](milestones/README.md) | Pacote mínimo exigido por milestone | Vigente |
-| Demonstração, checklist e retrospectiva da M1 | Prova reproduzível da fundação arquitetural | Planejado (M1) |
+| Demonstração, checklist e retrospectiva da M1 | Prova reproduzível da fundação arquitetural | Implementado (M1) |
+| Demonstração, checklist e retrospectiva da M3 | Prova reproduzível da assincronia, integração e webhooks | Implementado (M3) |
 
 ## Estudos de caso
 
