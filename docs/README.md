@@ -13,6 +13,7 @@ documento declara status, data, dependências e missão no cabeçalho.
 | [Autenticação e autorização de contas](architecture/autenticacao-e-autorizacao-contas.md) | JWT, autorização por proprietário e roteiro de validação cruzada | Implementado |
 | [Transactional Outbox na transação do pagamento](architecture/transactional-outbox.md) | Evento de domínio atômico, publicador com retry, `SKIP LOCKED` e semântica at-least-once | Implementado |
 | [Kafka, tópicos versionados e contratos de eventos](architecture/kafka-eventos-versionados.md) | Publicação `payment.completed`/`payment.rejected`, partição por pagamento e evolução de schema | Implementado |
+| [Consumidor idempotente, inbox e replay](architecture/inbox-idempotencia-replay.md) | Deduplicação por `event_id`, efeito financeiro idempotente, replay auditável e configuração do listener | Implementado |
 
 ## Decisões e segurança
 
