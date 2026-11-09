@@ -41,7 +41,8 @@ constraint, ela é de integração com PostgreSQL real.
 | Camada | Ferramenta | Comando | O que prova | Status M1 |
 | ------ | ---------- | ------- | ----------- | --------- |
 | Unitário | JUnit 5 + AssertJ/Mockito | `make test-unit` | Regras puras, validação de entrada, aritmética monetária e autorização sem I/O | Implementado (12 testes) |
-| Integração | Spring Boot Test + MockMvc + PostgreSQL + Flyway | `make test-integration` | Contrato HTTP, persistência, migrations, autorização por proprietário e consultas reais | Implementado (12 testes) |
+| Integração | Spring Boot Test + MockMvc + PostgreSQL + Flyway | `make test-integration` | Contrato HTTP, persistência, migrations, autorização por proprietário e consultas reais | Implementado |
+| Integração (TypeScript) | NestJS Test + Supertest + PostgreSQL + stub HTTP | `make integration-api-check` | Contrato HTTP da borda, isolamento entre parceiros, DTOs, rate limit, correlação e webhooks | Implementado (13 testes) |
 | Gate completo | Maven `verify` + Checkstyle + JaCoCo | `make test` | Compilação, estilo, testes das duas camadas e relatório de cobertura | Implementado (24 testes) |
 | Contrato | Redocly + openapi-typescript | `npx @redocly/cli lint contracts/openapi/financial-core.yaml` | Sintaxe, referências e consistência do contrato público | Parcial: validado manualmente; automação no CI planejada para M2 |
 | Estático | Checkstyle | `make lint` | Convenções de código e ausência de violações bloqueantes | Implementado |
@@ -58,6 +59,8 @@ constraint, ela é de integração com PostgreSQL real.
   `PAYCORE_IT_DB_USER` e `PAYCORE_IT_DB_PASSWORD` apontando para um PostgreSQL 16 dedicado.
   O banco é migrado pelo Flyway antes dos cenários.
 - **Gate completo:** Java 21 e uma das opções de banco acima.
+- **Integration API:** Node.js 22+, `PAYCORE_INTEGRATION_DB_URL` apontando para um
+  PostgreSQL de teste e `npm ci` em `services/integration-api`. O schema de teste é isolado.
 - **Contrato:** Node.js com `npx` para Redocly/openapi-typescript (não disponível em todos os
   ambientes locais; o CI pode executá-lo).
 - **E2E/performance:** ambiente composto e ferramenta de carga; comandos serão fixados no
