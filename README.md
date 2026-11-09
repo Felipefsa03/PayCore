@@ -6,9 +6,9 @@ PostgreSQL como fonte única da verdade contábil; serviços satélites poliglot
 milestones seguintes, apenas onde a tecnologia resolve um problema real.
 
 > Estado atual: **M3 — Mensageria e integrações (em andamento)**. Contas, transferências,
-> ledger, outbox transacional, eventos Kafka versionados e consumidor idempotente já estão
-> implementados. A Integration API em NestJS atende parceiros simulados; webhooks assinados e
-> a demo do milestone entram nos cards seguintes.
+> ledger, outbox transacional, eventos Kafka versionados, consumidor idempotente e a
+> Integration API em NestJS com webhooks assinados, retry e DLQ já estão implementados. A
+> demo e a retrospectiva do milestone entram no card seguinte.
 
 ## Por onde começar
 
@@ -86,6 +86,11 @@ A **Integration API** (`services/integration-api`) expõe:
   duração cunhado para o seu `ownerId` e correlação propagada ao núcleo;
 - `POST/GET/DELETE /v1/webhooks` — cadastro, listagem e remoção de webhooks por parceiro,
   com segredo HMAC devolvido apenas na criação;
+- `GET /v1/webhook-deliveries` e `GET /v1/webhook-deliveries/{id}` — histórico e tentativas,
+  com a dead-letter queue em `status=dead`;
+- `POST /v1/webhook-deliveries/{id}/resend` — reenvio manual auditável de uma entrega na DLQ;
+- entregas assinadas com HMAC-SHA256 e timestamp, retry exponencial, timeout e bloqueio de
+  destinos privados na entrega;
 - autenticação por API key, validação de DTOs, rate limiting por parceiro e OpenAPI em
   `contracts/openapi/integration-api.yaml` (`/docs` em execução).
 

@@ -16,7 +16,13 @@ export async function createTestApp(financialCoreUrl: string): Promise<INestAppl
 
 export async function resetDatabase(app: INestApplication): Promise<void> {
   const database = app.get(DatabaseService);
-  await database.execute(`TRUNCATE TABLE ${database.table('webhook_subscriptions')}`);
+  await database.execute(
+    `TRUNCATE TABLE
+      ${database.table('webhook_delivery_attempts')},
+      ${database.table('webhook_deliveries')},
+      ${database.table('webhook_subscriptions')}
+     RESTART IDENTITY CASCADE`,
+  );
 }
 
 export function resetRateLimits(app: INestApplication): void {

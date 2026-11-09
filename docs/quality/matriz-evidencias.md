@@ -47,10 +47,12 @@ Legenda de status: **Implementado** = teste existe e roda no gate; **Parcial** =
 ### 2.2 Integração
 
 A Integration API em TypeScript tem sua própria suíte de integração em
-`services/integration-api/test/integration`. Ela usa PostgreSQL real e um stub HTTP do
-núcleo financeiro, cobrindo: consulta da própria transação, isolamento entre dois parceiros,
-validação de DTOs, rate limit, correlação, segredo de webhook e contrato OpenAPI. Evidência:
-`npm run check` (13 testes) executada pelo workflow `integration-api-ci.yml`.
+`services/integration-api/test/integration`. Ela usa PostgreSQL real, um stub HTTP do
+núcleo financeiro e um receptor de webhook que valida HMAC/timestamp, cobrindo: consulta da
+própria transação, isolamento entre dois parceiros, validação de DTOs, rate limit,
+correlação, segredo de webhook, contrato OpenAPI, entrega assinada, HTTP 500, timeout,
+retry, DLQ, reenvio manual auditável, evento repetido e bloqueio de destinos privados.
+Evidência: `npm run check` (23 testes) executada pelo workflow `integration-api-ci.yml`.
 
 | Teste | Arquivo | Regra provada | IDs | Status |
 | ----- | ------- | ------------- | --- | ------ |
@@ -82,7 +84,7 @@ validação de DTOs, rate limit, correlação, segredo de webhook e contrato Ope
 | RF-08 | Consultar transações/estados | Integração | `consulta a própria transação e propaga a correlação ao núcleo`; `completesTransferAndUpdatesBalances` | Implementado |
 | RF-09 | Avaliar risco | n/a | — | Planejado (M4) |
 | RF-10 | Conciliação | n/a | — | Planejado (M4) |
-| RF-11 | Webhooks | Integração | `cadastra webhook devolvendo o segredo apenas na criação`, `isola listagem e remoção por parceiro` | Parcial (cadastro e isolamento; entrega assinada no próximo card) |
+| RF-11 | Webhooks | Integração | `cadastra webhook devolvendo o segredo apenas na criação`, `entrega o envelope assinado, registra tentativa e expõe histórico`, `move para a DLQ, lista o dead-letter e reenvia manualmente com auditoria` | Implementado |
 | RF-12 | Métricas e auditoria | n/a | — | Planejado (M5) |
 
 ### 3.2 Requisitos não funcionais

@@ -206,9 +206,196 @@ paths:
       security: *a1
       summary: Remover webhook do parceiro autenticado
       tags: *a2
+  /v1/webhook-deliveries:
+    get:
+      description: O histórico inclui o estado atual, tentativas e a dead-letter queue (`status=dead`). Cada parceiro só enxerga as próprias entregas.
+      operationId: listWebhookDeliveries
+      parameters:
+        - name: status
+          required: false
+          in: query
+          description: Filtra pelo estado da entrega.
+          schema:
+            type: string
+            enum:
+              - pending
+              - delivering
+              - delivered
+              - dead
+        - name: webhookId
+          required: false
+          in: query
+          description: Filtra por uma inscrição de webhook.
+          schema:
+            format: uuid
+            type: string
+        - name: eventType
+          required: false
+          in: query
+          description: Filtra pelo tipo de evento.
+          schema:
+            type: string
+            enum:
+              - payment.completed
+              - payment.rejected
+        - name: limit
+          required: false
+          in: query
+          schema:
+            minimum: 1
+            maximum: 100
+            default: 20
+            type: number
+        - name: offset
+          required: false
+          in: query
+          schema:
+            minimum: 0
+            default: 0
+            type: number
+        - name: X-Correlation-Id
+          in: header
+          required: false
+          description: Identificador de correlação (1-100 caracteres seguros). Gerado quando ausente e devolvido no cabeçalho da resposta.
+          schema:
+            type: string
+            maxLength: 100
+      responses:
+        "200":
+          description: Entregas do parceiro, mais recentes primeiro.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebhookDeliveryListResponse"
+        "400":
+          description: Filtros inválidos.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Credencial ausente ou inválida.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Limite de requisições excedido.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security: &a3
+        - partnerApiKey: []
+      summary: Listar entregas de webhooks do parceiro autenticado
+      tags: &a4
+        - Webhook deliveries
+  /v1/webhook-deliveries/{deliveryId}:
+    get:
+      operationId: getWebhookDelivery
+      parameters:
+        - name: deliveryId
+          required: true
+          in: path
+          schema:
+            format: uuid
+            type: string
+        - name: X-Correlation-Id
+          in: header
+          required: false
+          description: Identificador de correlação (1-100 caracteres seguros). Gerado quando ausente e devolvido no cabeçalho da resposta.
+          schema:
+            type: string
+            maxLength: 100
+      responses:
+        "200":
+          description: Entrega com payload assinado e tentativas auditáveis.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebhookDeliveryDetailResponse"
+        "401":
+          description: Credencial ausente ou inválida.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Entrega não encontrada para o parceiro autenticado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Limite de requisições excedido.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security: *a3
+      summary: Consultar uma entrega e suas tentativas
+      tags: *a4
+  /v1/webhook-deliveries/{deliveryId}/resend:
+    post:
+      description: Cria uma nova entrega vinculada à original e com o mesmo payload assinado. Cada reenvio fica auditável; o evento original não é reexecutado.
+      operationId: resendWebhookDelivery
+      parameters:
+        - name: deliveryId
+          required: true
+          in: path
+          schema:
+            format: uuid
+            type: string
+        - name: X-Correlation-Id
+          in: header
+          required: false
+          description: Identificador de correlação (1-100 caracteres seguros). Gerado quando ausente e devolvido no cabeçalho da resposta.
+          schema:
+            type: string
+            maxLength: 100
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ResendWebhookDeliveryRequest"
+      responses:
+        "202":
+          description: Reenvio enfileirado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebhookDeliveryResponse"
+        "401":
+          description: Credencial ausente ou inválida.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Entrega não encontrada para o parceiro autenticado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Entrega não está na DLQ ou já possui reenvio pendente.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Limite de requisições excedido.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security: *a3
+      summary: Reenviar manualmente uma entrega da dead-letter queue
+      tags: *a4
 info:
   title: PayCore Integration API
-  description: API de integração para parceiros simulados do PayCore. Autenticação por API key (`X-Api-Key`); cada parceiro enxerga apenas as próprias transações e webhooks.
+  description: API de integração para parceiros simulados do PayCore. Autenticação por API key (`X-Api-Key`); cada parceiro enxerga apenas as próprias transações e webhooks. Entregas de webhook são assinadas com HMAC-SHA256 e timestamp, com retry, DLQ e reenvio manual auditável.
   version: 0.1.0
   contact: {}
   license:
@@ -219,6 +406,8 @@ tags:
     description: Consulta de transações do parceiro (RF-08).
   - name: Webhooks
     description: Cadastro de webhooks do parceiro (RF-11).
+  - name: Webhook deliveries
+    description: Histórico, tentativas, dead-letter queue e reenvio manual de webhooks (RF-11).
   - name: Health
     description: Liveness do serviço.
 servers:
@@ -347,7 +536,7 @@ components:
           example: https://parceiro.example/webhooks/paycore
         eventTypes:
           type: array
-          items: &a3
+          items: &a5
             type: string
             enum:
               - payment.completed
@@ -388,7 +577,7 @@ components:
           example: https://parceiro.example/webhooks/paycore
         eventTypes:
           type: array
-          items: *a3
+          items: *a5
         description:
           type: string
           nullable: true
@@ -409,3 +598,245 @@ components:
         - active
         - createdAt
         - updatedAt
+    WebhookDeliveryResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        webhookId:
+          type: string
+          format: uuid
+          description: Inscrição de webhook que originou a entrega.
+        eventId:
+          type: string
+          format: uuid
+        eventType:
+          type: string
+          enum: &a6
+            - payment.completed
+            - payment.rejected
+        status:
+          type: string
+          enum: &a7
+            - pending
+            - delivering
+            - delivered
+            - dead
+        origin:
+          type: string
+          enum: &a8
+            - event
+            - manual_resend
+        sourceDeliveryId:
+          type: string
+          format: uuid
+          nullable: true
+        resendReason:
+          type: string
+          nullable: true
+          maxLength: 500
+        attemptCount:
+          type: number
+        maxAttempts:
+          type: number
+        nextAttemptAt:
+          type: string
+          format: date-time
+          nullable: true
+        lastAttemptAt:
+          type: string
+          format: date-time
+          nullable: true
+        lastStatusCode:
+          type: number
+          nullable: true
+          example: 200
+        lastError:
+          type: string
+          nullable: true
+          maxLength: 1000
+        deliveredAt:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - webhookId
+        - eventId
+        - eventType
+        - status
+        - origin
+        - sourceDeliveryId
+        - resendReason
+        - attemptCount
+        - maxAttempts
+        - nextAttemptAt
+        - lastAttemptAt
+        - lastStatusCode
+        - lastError
+        - deliveredAt
+        - createdAt
+        - updatedAt
+    WebhookDeliveryListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/WebhookDeliveryResponse"
+        total:
+          type: number
+        limit:
+          type: number
+        offset:
+          type: number
+      required:
+        - items
+        - total
+        - limit
+        - offset
+    WebhookDeliveryAttemptResponse:
+      type: object
+      properties:
+        attemptNumber:
+          type: number
+        outcome:
+          type: string
+          enum:
+            - succeeded
+            - http_error
+            - timeout
+            - network_error
+            - blocked_destination
+        responseStatus:
+          type: number
+          nullable: true
+          example: 500
+        error:
+          type: string
+          nullable: true
+          maxLength: 1000
+        durationMs:
+          type: number
+          nullable: true
+        requestTimestamp:
+          type: number
+          description: Unix timestamp (segundos) usado no cabeçalho e na assinatura.
+        signature:
+          type: string
+          example: v1=...
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - attemptNumber
+        - outcome
+        - responseStatus
+        - error
+        - durationMs
+        - requestTimestamp
+        - signature
+        - createdAt
+    WebhookDeliveryDetailResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        webhookId:
+          type: string
+          format: uuid
+          description: Inscrição de webhook que originou a entrega.
+        eventId:
+          type: string
+          format: uuid
+        eventType:
+          type: string
+          enum: *a6
+        status:
+          type: string
+          enum: *a7
+        origin:
+          type: string
+          enum: *a8
+        sourceDeliveryId:
+          type: string
+          format: uuid
+          nullable: true
+        resendReason:
+          type: string
+          nullable: true
+          maxLength: 500
+        attemptCount:
+          type: number
+        maxAttempts:
+          type: number
+        nextAttemptAt:
+          type: string
+          format: date-time
+          nullable: true
+        lastAttemptAt:
+          type: string
+          format: date-time
+          nullable: true
+        lastStatusCode:
+          type: number
+          nullable: true
+          example: 200
+        lastError:
+          type: string
+          nullable: true
+          maxLength: 1000
+        deliveredAt:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        payload:
+          type: object
+          additionalProperties: true
+          description: Envelope do evento exatamente como assinado e enviado ao parceiro.
+        attempts:
+          type: array
+          items:
+            $ref: "#/components/schemas/WebhookDeliveryAttemptResponse"
+      required:
+        - id
+        - webhookId
+        - eventId
+        - eventType
+        - status
+        - origin
+        - sourceDeliveryId
+        - resendReason
+        - attemptCount
+        - maxAttempts
+        - nextAttemptAt
+        - lastAttemptAt
+        - lastStatusCode
+        - lastError
+        - deliveredAt
+        - createdAt
+        - updatedAt
+        - payload
+        - attempts
+    ResendWebhookDeliveryRequest:
+      type: object
+      properties:
+        reason:
+          type: string
+          maxLength: 500
+          example: Parceiro corrigiu o endpoint após o incidente.
+          description: Justificativa auditável do reenvio manual.

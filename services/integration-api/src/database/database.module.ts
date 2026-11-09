@@ -1,5 +1,5 @@
 import { Global, Inject, Injectable, Module, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
-import { Pool } from 'pg';
+import { Pool, PoolClient } from 'pg';
 import { APP_CONFIG, AppConfig } from '../config/app-config';
 
 @Injectable()
@@ -36,15 +36,32 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
     return result.rowCount ?? 0;
   }
 
+  async transaction<T>(work: (client: PoolClient) => Promise<T>): Promise<T> {
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+      const result = await work(client);
+      await client.query('COMMIT');
+      return result;
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
   table(name: string): string {
     return `"${this.schema}"."${name}"`;
   }
 }
 
 function migrations(schema: string): string[] {
-  const table = `"${schema}".webhook_subscriptions`;
+  const subscriptions = `"${schema}".webhook_subscriptions`;
+  const deliveries = `"${schema}".webhook_deliveries`;
+  const attempts = `"${schema}".webhook_delivery_attempts`;
   return [
-    `CREATE TABLE IF NOT EXISTS ${table} (
+    `CREATE TABLE IF NOT EXISTS ${subscriptions} (
       id uuid PRIMARY KEY,
       partner_id text NOT NULL,
       owner_id uuid NOT NULL,
@@ -57,7 +74,61 @@ function migrations(schema: string): string[] {
       updated_at timestamptz NOT NULL DEFAULT now()
     )`,
     `CREATE INDEX IF NOT EXISTS webhook_subscriptions_partner_idx
-      ON ${table} (partner_id, created_at DESC)`,
+      ON ${subscriptions} (partner_id, created_at DESC)`,
+    `CREATE TABLE IF NOT EXISTS ${deliveries} (
+      id uuid PRIMARY KEY,
+      subscription_id uuid NOT NULL
+        REFERENCES ${subscriptions} (id) ON DELETE CASCADE,
+      partner_id text NOT NULL,
+      event_id text NOT NULL,
+      event_type text NOT NULL,
+      body text NOT NULL,
+      status text NOT NULL DEFAULT 'pending'
+        CHECK (status IN ('pending', 'delivering', 'delivered', 'dead')),
+      origin text NOT NULL DEFAULT 'event'
+        CHECK (origin IN ('event', 'manual_resend')),
+      source_delivery_id uuid
+        REFERENCES ${deliveries} (id) ON DELETE SET NULL,
+      resend_reason text,
+      attempts integer NOT NULL DEFAULT 0 CHECK (attempts >= 0),
+      max_attempts integer NOT NULL DEFAULT 6 CHECK (max_attempts >= 1),
+      next_attempt_at timestamptz NOT NULL DEFAULT now(),
+      last_attempt_at timestamptz,
+      last_status_code integer,
+      last_error text,
+      delivered_at timestamptz,
+      created_at timestamptz NOT NULL DEFAULT now(),
+      updated_at timestamptz NOT NULL DEFAULT now()
+    )`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS webhook_deliveries_event_unique
+      ON ${deliveries} (subscription_id, event_id) WHERE origin = 'event'`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS webhook_deliveries_pending_resend_unique
+      ON ${deliveries} (source_delivery_id)
+      WHERE origin = 'manual_resend' AND status IN ('pending', 'delivering')`,
+    `CREATE INDEX IF NOT EXISTS webhook_deliveries_due_idx
+      ON ${deliveries} (status, next_attempt_at)`,
+    `CREATE INDEX IF NOT EXISTS webhook_deliveries_partner_idx
+      ON ${deliveries} (partner_id, created_at DESC)`,
+    `CREATE INDEX IF NOT EXISTS webhook_deliveries_subscription_idx
+      ON ${deliveries} (subscription_id, created_at DESC)`,
+    `CREATE TABLE IF NOT EXISTS ${attempts} (
+      id uuid PRIMARY KEY,
+      delivery_id uuid NOT NULL
+        REFERENCES ${deliveries} (id) ON DELETE CASCADE,
+      attempt_number integer NOT NULL CHECK (attempt_number >= 1),
+      outcome text NOT NULL CHECK (
+        outcome IN ('succeeded', 'http_error', 'timeout', 'network_error', 'blocked_destination')
+      ),
+      response_status integer,
+      error text,
+      duration_ms integer CHECK (duration_ms IS NULL OR duration_ms >= 0),
+      request_timestamp bigint NOT NULL,
+      signature text NOT NULL,
+      created_at timestamptz NOT NULL DEFAULT now(),
+      UNIQUE (delivery_id, attempt_number)
+    )`,
+    `CREATE INDEX IF NOT EXISTS webhook_delivery_attempts_delivery_idx
+      ON ${attempts} (delivery_id, attempt_number)`,
   ];
 }
 

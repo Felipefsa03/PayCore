@@ -6,7 +6,9 @@ export function buildOpenApiDocument(app: INestApplication): OpenAPIObject {
     .setTitle('PayCore Integration API')
     .setDescription(
       'API de integração para parceiros simulados do PayCore. Autenticação por API key ' +
-        '(`X-Api-Key`); cada parceiro enxerga apenas as próprias transações e webhooks.',
+        '(`X-Api-Key`); cada parceiro enxerga apenas as próprias transações e webhooks. ' +
+        'Entregas de webhook são assinadas com HMAC-SHA256 e timestamp, com retry, DLQ e ' +
+        'reenvio manual auditável.',
     )
     .setVersion('0.1.0')
     .setLicense('UNLICENSED', 'https://example.invalid/license')
@@ -31,6 +33,10 @@ export function buildOpenApiDocument(app: INestApplication): OpenAPIObject {
     })
     .addTag('Transactions', 'Consulta de transações do parceiro (RF-08).')
     .addTag('Webhooks', 'Cadastro de webhooks do parceiro (RF-11).')
+    .addTag(
+      'Webhook deliveries',
+      'Histórico, tentativas, dead-letter queue e reenvio manual de webhooks (RF-11).',
+    )
     .addTag('Health', 'Liveness do serviço.')
     .build();
   return SwaggerModule.createDocument(app, config);

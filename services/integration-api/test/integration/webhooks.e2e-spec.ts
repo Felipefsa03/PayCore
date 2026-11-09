@@ -142,6 +142,9 @@ describe('Webhooks, validação, rate limit e OpenAPI', () => {
         '/v1/transactions/{transactionId}',
         '/v1/webhooks',
         '/v1/webhooks/{webhookId}',
+        '/v1/webhook-deliveries',
+        '/v1/webhook-deliveries/{deliveryId}',
+        '/v1/webhook-deliveries/{deliveryId}/resend',
         '/health',
       ]),
     );
@@ -149,5 +152,11 @@ describe('Webhooks, validação, rate limit e OpenAPI', () => {
       'Transactions',
     );
     expect(document.paths['/v1/webhooks']?.post?.tags).toContain('Webhooks');
+    expect(document.paths['/v1/webhook-deliveries']?.get?.tags).toContain(
+      'Webhook deliveries',
+    );
+    expect(
+      document.paths['/v1/webhook-deliveries/{deliveryId}/resend']?.post?.tags,
+    ).toContain('Webhook deliveries');
   });
 });

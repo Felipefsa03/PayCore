@@ -10,6 +10,24 @@ export interface PartnerConfig {
   readonly rateLimitPerMinute: number;
 }
 
+export interface WebhookConfig {
+  readonly workerEnabled: boolean;
+  readonly pollIntervalMs: number;
+  readonly batchSize: number;
+  readonly maxAttempts: number;
+  readonly timeoutMs: number;
+  readonly backoffBaseMs: number;
+  readonly backoffMaxMs: number;
+  readonly lockTtlMs: number;
+  readonly allowPrivateNetworks: boolean;
+  readonly kafka: {
+    readonly enabled: boolean;
+    readonly brokers: readonly string[];
+    readonly groupId: string;
+    readonly clientId: string;
+  };
+}
+
 export interface AppConfig {
   readonly port: number;
   readonly partners: readonly PartnerConfig[];
@@ -17,6 +35,7 @@ export interface AppConfig {
   readonly financialCore: { readonly baseUrl: string; readonly timeoutMs: number };
   readonly database: { readonly url: string; readonly schema: string };
   readonly rateLimit: { readonly windowMs: number; readonly defaultPerMinute: number };
+  readonly webhooks: WebhookConfig;
 }
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -77,6 +96,86 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     financialCore: { baseUrl: financialCoreUrl.replace(/\/+$/, ''), timeoutMs },
     database: { url: databaseUrl, schema },
     rateLimit: { windowMs: 60_000, defaultPerMinute: defaultRateLimit },
+    webhooks: loadWebhookConfig(env),
+  };
+}
+
+function loadWebhookConfig(env: NodeJS.ProcessEnv): WebhookConfig {
+  const workerEnabled = boolean(env.PAYCORE_WEBHOOK_WORKER_ENABLED, true, 'PAYCORE_WEBHOOK_WORKER_ENABLED');
+  const kafkaEnabled = boolean(env.PAYCORE_WEBHOOK_KAFKA_ENABLED, false, 'PAYCORE_WEBHOOK_KAFKA_ENABLED');
+  const allowPrivateNetworks = boolean(
+    env.PAYCORE_WEBHOOK_ALLOW_PRIVATE_NETWORKS,
+    false,
+    'PAYCORE_WEBHOOK_ALLOW_PRIVATE_NETWORKS',
+  );
+  const backoffBaseMs = integer(
+    env.PAYCORE_WEBHOOK_BACKOFF_BASE_MS,
+    1_000,
+    'PAYCORE_WEBHOOK_BACKOFF_BASE_MS',
+    1,
+    60_000,
+  );
+  const backoffMaxMs = integer(
+    env.PAYCORE_WEBHOOK_BACKOFF_MAX_MS,
+    60_000,
+    'PAYCORE_WEBHOOK_BACKOFF_MAX_MS',
+    1,
+    3_600_000,
+  );
+  if (backoffMaxMs < backoffBaseMs) {
+    throw new ConfigError('PAYCORE_WEBHOOK_BACKOFF_MAX_MS precisa ser >= BASE_MS');
+  }
+  const brokers = (env.PAYCORE_WEBHOOK_KAFKA_BROKERS ?? '127.0.0.1:9092')
+    .split(',')
+    .map((broker) => broker.trim())
+    .filter((broker) => broker.length > 0);
+  if (brokers.length === 0) {
+    throw new ConfigError('PAYCORE_WEBHOOK_KAFKA_BROKERS precisa conter ao menos um broker');
+  }
+  const groupId = env.PAYCORE_WEBHOOK_KAFKA_GROUP_ID ?? 'paycore-integration-webhooks';
+  if (groupId.trim().length === 0) {
+    throw new ConfigError('PAYCORE_WEBHOOK_KAFKA_GROUP_ID inválido');
+  }
+  return {
+    workerEnabled,
+    pollIntervalMs: integer(
+      env.PAYCORE_WEBHOOK_POLL_INTERVAL_MS,
+      1_000,
+      'PAYCORE_WEBHOOK_POLL_INTERVAL_MS',
+      50,
+      600_000,
+    ),
+    batchSize: integer(env.PAYCORE_WEBHOOK_BATCH_SIZE, 10, 'PAYCORE_WEBHOOK_BATCH_SIZE', 1, 100),
+    maxAttempts: integer(
+      env.PAYCORE_WEBHOOK_MAX_ATTEMPTS,
+      6,
+      'PAYCORE_WEBHOOK_MAX_ATTEMPTS',
+      1,
+      20,
+    ),
+    timeoutMs: integer(
+      env.PAYCORE_WEBHOOK_TIMEOUT_MS,
+      5_000,
+      'PAYCORE_WEBHOOK_TIMEOUT_MS',
+      100,
+      60_000,
+    ),
+    backoffBaseMs,
+    backoffMaxMs,
+    lockTtlMs: integer(
+      env.PAYCORE_WEBHOOK_LOCK_TTL_MS,
+      30_000,
+      'PAYCORE_WEBHOOK_LOCK_TTL_MS',
+      1_000,
+      600_000,
+    ),
+    allowPrivateNetworks,
+    kafka: {
+      enabled: kafkaEnabled,
+      brokers,
+      groupId,
+      clientId: env.PAYCORE_WEBHOOK_KAFKA_CLIENT_ID ?? 'paycore-integration-api',
+    },
   };
 }
 
@@ -160,6 +259,19 @@ function integer(
     throw new ConfigError(`${name} fora do intervalo permitido`);
   }
   return parsed;
+}
+
+function boolean(raw: string | undefined, fallback: boolean, name: string): boolean {
+  if (raw === undefined || raw === '') {
+    return fallback;
+  }
+  if (raw === '1' || raw.toLowerCase() === 'true') {
+    return true;
+  }
+  if (raw === '0' || raw.toLowerCase() === 'false') {
+    return false;
+  }
+  throw new ConfigError(`${name} precisa ser 1/0 ou true/false`);
 }
 
 function integerValue(value: unknown, min: number, max: number): number {
