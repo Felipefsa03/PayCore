@@ -10,6 +10,9 @@ import com.paycore.financialcore.ledger.LedgerService;
 import com.paycore.financialcore.payments.OutboxEventService;
 import com.paycore.financialcore.payments.Transfer;
 import com.paycore.financialcore.payments.TransferRepository;
+import com.paycore.financialcore.app.risk.RiskClient;
+import com.paycore.financialcore.app.risk.RiskEvaluation;
+import com.paycore.financialcore.app.risk.RiskUnavailableException;
 import java.security.MessageDigest;
 import java.time.Instant;
 import java.util.UUID;
@@ -24,18 +27,21 @@ public class TransferService {
   private final LedgerService ledger;
   private final IdempotencyService idempotency;
   private final OutboxEventService outbox;
+  private final RiskClient risk;
 
   public TransferService(
       AccountRepository accounts,
       TransferRepository transfers,
       LedgerService ledger,
       IdempotencyService idempotency,
-      OutboxEventService outbox) {
+      OutboxEventService outbox,
+      RiskClient risk) {
     this.accounts = accounts;
     this.transfers = transfers;
     this.ledger = ledger;
     this.idempotency = idempotency;
     this.outbox = outbox;
+    this.risk = risk;
   }
 
   @Transactional
@@ -97,6 +103,54 @@ public class TransferService {
     }
     if (!source.getCurrency().equals(currency) || !destination.getCurrency().equals(currency)) {
       throw new IllegalArgumentException("account currency must match transfer currency");
+    }
+
+    RiskEvaluation riskDecision;
+    try {
+      riskDecision = risk.evaluate(java.util.UUID.randomUUID(), amount, currency);
+    } catch (RiskUnavailableException exception) {
+      riskDecision = null;
+      Transfer unavailable = new Transfer(
+          java.util.UUID.randomUUID(),
+          sourceAccountId,
+          destinationAccountId,
+          amount,
+          currency,
+          idempotencyKey,
+          correlationId);
+      unavailable.reject("risk_unavailable");
+      Transfer savedUnavailable = transfers.saveAndFlush(unavailable);
+      outbox.append(
+          "transfer",
+          savedUnavailable.getId(),
+          "transfer.rejected",
+          1,
+          transferPayload(savedUnavailable),
+          savedUnavailable.getCorrelationId());
+      idempotency.complete(record, savedUnavailable.getId(), snapshot(savedUnavailable));
+      return savedUnavailable;
+    }
+
+    if (riskDecision != null && "REJECT".equals(riskDecision.decision())) {
+      Transfer rejected = new Transfer(
+          java.util.UUID.randomUUID(),
+          sourceAccountId,
+          destinationAccountId,
+          amount,
+          currency,
+          idempotencyKey,
+          correlationId);
+      rejected.reject("risk_rejected");
+      Transfer savedRejected = transfers.saveAndFlush(rejected);
+      outbox.append(
+          "transfer",
+          savedRejected.getId(),
+          "transfer.rejected",
+          1,
+          transferPayload(savedRejected),
+          savedRejected.getCorrelationId());
+      idempotency.complete(record, savedRejected.getId(), snapshot(savedRejected));
+      return savedRejected;
     }
 
     try {
