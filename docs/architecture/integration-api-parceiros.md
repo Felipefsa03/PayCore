@@ -16,8 +16,9 @@ enxergue dados de outro (RF-08, RF-11 e RNF-06).
 
 O serviço é um processo TypeScript/NestJS separado do monólito Java. Ele existe porque a
 borda de integração tem requisitos próprios — API keys, DTOs externos, rate limiting,
-contrato OpenAPI e, no card seguinte, entrega assinada de webhooks — e isola a evolução
-desses requisitos do núcleo contábil.
+contrato OpenAPI e entrega assinada de webhooks — e isola a evolução desses requisitos do
+núcleo contábil. A entrega confiável é detalhada em
+[Webhooks confiáveis: HMAC, retry e DLQ](webhooks-entrega-assinada.md).
 
 ## 1. Fronteira e fluxo
 
@@ -66,6 +67,9 @@ outro — está coberto por `test/integration/transactions.e2e-spec.ts` e
 | `POST` | `/v1/webhooks` | Cadastra webhook e devolve o segredo HMAC uma única vez | 400, 401, 429 |
 | `GET` | `/v1/webhooks` | Lista webhooks do parceiro autenticado | 401, 429 |
 | `DELETE` | `/v1/webhooks/{webhookId}` | Remove webhook do parceiro autenticado | 401, 404, 429 |
+| `GET` | `/v1/webhook-deliveries` | Histórico de entregas, com filtros e DLQ (`status=dead`) | 400, 401, 429 |
+| `GET` | `/v1/webhook-deliveries/{deliveryId}` | Detalhe da entrega e tentativas | 401, 404, 429 |
+| `POST` | `/v1/webhook-deliveries/{deliveryId}/resend` | Reenvio manual de entrega na DLQ | 401, 404, 409, 429 |
 
 Todas as rotas de negócio exigem `X-Api-Key`. `X-Correlation-Id` é opcional: quando
 ausente ou fora do formato permitido (1–100 caracteres seguros), o serviço gera um UUID,
@@ -92,9 +96,9 @@ O cadastro valida:
 - ausência de campos desconhecidos (`whitelist` + `forbidNonWhitelisted`).
 
 O segredo (`whsec_…`, 256 bits) é gerado por inscrição, devolvido **apenas** na resposta de
-criação e persistido para assinar entregas. A listagem nunca o devolve. A entrega HMAC,
-retry, backoff, DLQ e reenvio manual são o escopo do card seguinte; este card entrega o
-registro durável e o segredo que aquela entrega usará.
+criação e persistido para assinar entregas. A listagem nunca o devolve. A assinatura HMAC
+com timestamp, o retry com backoff, a DLQ e o reenvio manual são detalhados em
+[Webhooks confiáveis: HMAC, retry e DLQ](webhooks-entrega-assinada.md).
 
 ## 5. Rate limiting e correlação
 
@@ -137,6 +141,10 @@ webhook_subscriptions (
 )
 ```
 
+O card 5 acrescenta `webhook_deliveries` (fila e histórico, com índice único parcial por
+inscrição/evento) e `webhook_delivery_attempts` (auditoria de cada tentativa). O modelo
+completo está em [Webhooks confiáveis](webhooks-entrega-assinada.md#6-persistência).
+
 As migrations são idempotentes e rodam na inicialização. O schema de teste é separado
 (`integration_api_test`) e truncado entre cenários; nenhum teste usa o banco da aplicação
 Gartrol.
@@ -147,9 +155,11 @@ Gartrol.
 | ------ | --------- |
 | Integração HTTP | `test/integration/transactions.e2e-spec.ts` — consulta própria, isolamento entre parceiros, correlação, 401, 400 e 503 |
 | Integração HTTP | `test/integration/webhooks.e2e-spec.ts` — cadastro, segredo único, isolamento, DTOs, rate limit e OpenAPI |
+| Integração HTTP | `test/integration/webhook-deliveries.e2e-spec.ts` — HMAC/timestamp, HTTP 500, timeout, DLQ, reenvio, evento repetido e isolamento |
 | Upstream | `test/helpers/stub-financial-core.ts` valida assinatura/emissor do JWT e aplica isolamento por `sub` |
+| Webhook | `test/helpers/stub-webhook-receiver.ts` verifica HMAC/timestamp e enfileira 200, 500 ou timeout |
 | Contrato | `npm run openapi:check` e teste que inspeciona paths, tags e `partnerApiKey` |
-| Gate | `npm run check` (typecheck, 13 testes, OpenAPI, build) |
+| Gate | `npm run check` (typecheck, 23 testes, OpenAPI, build) |
 
 Comando local:
 
@@ -165,11 +175,13 @@ cd services/integration-api && npm ci && npm run check
 | Rate limit em memória | Uma instância de laboratório | Múltiplas réplicas ou ambiente compartilhado |
 | API keys em variável de ambiente | Parceiros simulados, sem dados reais | Provedor de identidade de parceiro / rotação |
 | JWT de 60 s cunhado pelo serviço | Segredo compartilhado de laboratório | Identidade de workload na M5 |
-| Segredo de webhook persistido em claro | Necessário para assinar no card 5 | Cofre de segredos ou envelope encryption |
+| Segredo de webhook persistido em claro | Necessário para assinar entregas; banco local | Cofre de segredos ou envelope encryption |
 | Stub HTTP nos testes | Evita subir o monólito Java em cada cenário | Teste E2E composto na demo do M3 |
+| DNS rebinding residual na entrega | Bloqueio após resolução e redirect desabilitado | Conector que fixa o IP validado |
 
 ## Referências
 
+- [Webhooks confiáveis: HMAC, retry e DLQ](webhooks-entrega-assinada.md)
 - [RFC-001 — Visão e arquitetura inicial](../rfc/RFC-001-visao-e-arquitetura-inicial.md)
 - [Requisitos, invariantes e glossário](../requirements/requisitos-invariantes-glossario.md)
 - [Modelo de ameaças](../security/modelo-ameacas.md)

@@ -15,6 +15,7 @@ documento declara status, data, dependências e missão no cabeçalho.
 | [Kafka, tópicos versionados e contratos de eventos](architecture/kafka-eventos-versionados.md) | Publicação `payment.completed`/`payment.rejected`, partição por pagamento e evolução de schema | Implementado |
 | [Consumidor idempotente, inbox e replay](architecture/inbox-idempotencia-replay.md) | Deduplicação por `event_id`, efeito financeiro idempotente, replay auditável e configuração do listener | Implementado |
 | [Integration API para parceiros simulados](architecture/integration-api-parceiros.md) | API key, JWT de borda, isolamento entre parceiros, webhooks, rate limit, correlação e OpenAPI | Implementado |
+| [Webhooks confiáveis: HMAC, retry e DLQ](architecture/webhooks-entrega-assinada.md) | Assinatura com timestamp, fila durável, retry/backoff, DLQ, histórico e reenvio manual | Implementado |
 
 ## Decisões e segurança
 

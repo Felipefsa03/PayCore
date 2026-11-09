@@ -65,6 +65,16 @@ export class WebhooksRepository {
     return rows.map(mapRow);
   }
 
+  async listActiveByEventType(eventType: string): Promise<WebhookRecord[]> {
+    const rows = await this.database.query<WebhookRow>(
+      `SELECT * FROM ${this.table}
+       WHERE active = true AND $1 = ANY(event_types)
+       ORDER BY created_at ASC, id ASC`,
+      [eventType],
+    );
+    return rows.map(mapRow);
+  }
+
   async deleteById(partnerId: string, id: string): Promise<boolean> {
     const deleted = await this.database.execute(
       `DELETE FROM ${this.table} WHERE partner_id = $1 AND id = $2`,
