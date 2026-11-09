@@ -1,0 +1,48 @@
+name: reconciliation CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "services/reconciliation/**"
+      - ".github/workflows/reconciliation-ci.yml"
+  pull_request:
+    paths:
+      - "services/reconciliation/**"
+      - ".github/workflows/reconciliation-ci.yml"
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/reconciliation
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          tools: composer:v2
+          coverage: none
+
+      - name: Install dependencies
+        run: composer install --no-interaction --prefer-dist
+
+      - name: Check platform requirements
+        run: composer check-platform-reqs --no-dev -q
+
+      - name: Check code style
+        run: ./vendor/bin/pint --test
+
+      - name: Run test suite
+        run: php artisan test
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reconciliation-reports
+          path: services/reconciliation/storage/logs/**
+          if-no-files-found: ignore

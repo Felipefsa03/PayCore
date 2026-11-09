@@ -33,7 +33,8 @@ milestones seguintes, apenas onde a tecnologia resolve um problema real.
 ├── scripts/              # Automação de apoio ao repositório
 ├── services/             # Serviços executáveis
 │   ├── financial-core/   # Monólito modular Java (shared, accounts, ledger, payments, app)
-│   └── integration-api/  # Borda TypeScript/NestJS para parceiros e webhooks
+│   ├── integration-api/  # Borda TypeScript/NestJS para parceiros e webhooks
+│   └── reconciliation/   # Conciliação PHP/Laravel de extratos CSV fictícios
 ├── tests/                # Testes transversais: contrato, e2e e desempenho
 ├── Makefile              # Entrada única para as tarefas do laboratório
 └── README.md
@@ -46,6 +47,7 @@ sem introduzir consistência distribuída no núcleo contábil (RFC-001 §6–§
 
 - **Java 21** (o build usa o Maven Wrapper; não é necessário instalar Maven).
 - **Node.js 22+** para a Integration API em `services/integration-api`.
+- **PHP 8.3+ e Composer 2** para a Reconciliation em `services/reconciliation`.
 - **Docker com Compose v2** para subir o PostgreSQL local com `make up`.
 - **Python 3** apenas para `make docs-check`.
 - Alternativa sem Docker: aponte os testes de integração para um PostgreSQL existente com
@@ -58,6 +60,7 @@ make help          # lista os alvos disponíveis
 make up            # sobe o PostgreSQL local (Docker Compose)
 make test          # gate completo: compilação, Checkstyle, testes unitários e de integração
 make integration-api-check  # typecheck, testes, OpenAPI e build da Integration API
+make reconciliation-check   # platform reqs, Pint e testes da Reconciliation
 make run           # inicia a API em http://localhost:8080 (requer PostgreSQL)
 make docs-check         # valida links relativos da documentação
 make security-check     # valida dono, mitigação e risco residual do modelo de ameaças
@@ -93,6 +96,16 @@ A **Integration API** (`services/integration-api`) expõe:
   destinos privados na entrega;
 - autenticação por API key, validação de DTOs, rate limiting por parceiro e OpenAPI em
   `contracts/openapi/integration-api.yaml` (`/docs` em execução).
+
+A **Reconciliation** (`services/reconciliation`) importa extratos bancários fictícios em
+CSV e concilia cada lançamento com o ledger:
+
+- `POST /api/statement-imports` — upload do CSV; reenviar o mesmo arquivo (mesmo hash de
+  conteúdo) é idempotente e devolve o import já existente, sem reprocessar;
+- `GET /api/statement-imports/{id}` e `GET /api/statement-imports/{id}/divergences` —
+  status, contadores e divergências rastreadas (duplicidade no arquivo, valor/moeda/status
+  divergente, ausência no ledger, ausência no extrato e linha inválida);
+- autenticação por API key, processamento em job e armazenamento privado do arquivo.
 
 O roteiro completo de milestones está no RFC-001 e nos documentos de milestone em
 [`docs/milestones/`](docs/milestones/README.md).
