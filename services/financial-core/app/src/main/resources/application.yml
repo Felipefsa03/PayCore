@@ -25,6 +25,13 @@ spring:
       properties:
         enable.idempotence: true
         compression.type: lz4
+    consumer:
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      auto-offset-reset: earliest
+      enable-auto-commit: false
+    listener:
+      ack-mode: record
 
 management:
   endpoints:
@@ -43,6 +50,10 @@ paycore:
   outbox:
     # log: transporte de laboratório; kafka: publica nos tópicos versionados.
     transport: ${PAYCORE_OUTBOX_TRANSPORT:log}
+  inbox:
+    # Ligado explicitamente em runtime com broker (evita listeners sem Kafka nos testes).
+    consumer-enabled: ${PAYCORE_INBOX_ENABLED:false}
+    consumer-group: ${PAYCORE_INBOX_GROUP:paycore-inbox}
   auth:
     jwt:
       # Ambiente de laboratório: o segredo abaixo é público e serve apenas para
