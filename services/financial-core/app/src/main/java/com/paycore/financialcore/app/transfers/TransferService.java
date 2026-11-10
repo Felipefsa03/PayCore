@@ -105,68 +105,29 @@ public class TransferService {
       throw new IllegalArgumentException("account currency must match transfer currency");
     }
 
-    RiskEvaluation riskDecision;
+    UUID transferId = UUID.randomUUID();
+    Transfer transfer = new Transfer(
+        transferId, sourceAccountId, destinationAccountId, amount, currency, idempotencyKey, correlationId);
+    String rejectionReason;
     try {
-      riskDecision = risk.evaluate(java.util.UUID.randomUUID(), amount, currency);
+      RiskEvaluation evaluation = risk.evaluate(transferId, sourceAccountId, amount, currency);
+      rejectionReason = switch (evaluation.decision()) {
+        case "APPROVE" -> null;
+        case "REJECT" -> "risk_rejected";
+        case "REVIEW" -> "risk_review_required";
+        default -> "risk_unavailable";
+      };
     } catch (RiskUnavailableException exception) {
-      riskDecision = null;
-      Transfer unavailable = new Transfer(
-          java.util.UUID.randomUUID(),
-          sourceAccountId,
-          destinationAccountId,
-          amount,
-          currency,
-          idempotencyKey,
-          correlationId);
-      unavailable.reject("risk_unavailable");
-      Transfer savedUnavailable = transfers.saveAndFlush(unavailable);
-      outbox.append(
-          "transfer",
-          savedUnavailable.getId(),
-          "transfer.rejected",
-          1,
-          transferPayload(savedUnavailable),
-          savedUnavailable.getCorrelationId());
-      idempotency.complete(record, savedUnavailable.getId(), snapshot(savedUnavailable));
-      return savedUnavailable;
-    }
-
-    if (riskDecision != null && "REJECT".equals(riskDecision.decision())) {
-      Transfer rejected = new Transfer(
-          java.util.UUID.randomUUID(),
-          sourceAccountId,
-          destinationAccountId,
-          amount,
-          currency,
-          idempotencyKey,
-          correlationId);
-      rejected.reject("risk_rejected");
-      Transfer savedRejected = transfers.saveAndFlush(rejected);
-      outbox.append(
-          "transfer",
-          savedRejected.getId(),
-          "transfer.rejected",
-          1,
-          transferPayload(savedRejected),
-          savedRejected.getCorrelationId());
-      idempotency.complete(record, savedRejected.getId(), snapshot(savedRejected));
-      return savedRejected;
+      rejectionReason = "risk_unavailable";
     }
 
     try {
-      Transfer transfer =
-          new Transfer(
-              UUID.randomUUID(),
-              sourceAccountId,
-              destinationAccountId,
-              amount,
-              currency,
-              idempotencyKey,
-              correlationId);
-
       long sourceBalance = ledger.balanceOf(source.getId());
-      if (source.getOverdraftPolicy() == Account.OverdraftPolicy.FORBIDDEN && sourceBalance < amount) {
-        transfer.reject("insufficient_funds");
+      if (rejectionReason == null && source.getOverdraftPolicy() == Account.OverdraftPolicy.FORBIDDEN && sourceBalance < amount) {
+        rejectionReason = "insufficient_funds";
+      }
+      if (rejectionReason != null) {
+        transfer.reject(rejectionReason);
         Transfer saved = transfers.saveAndFlush(transfer);
         outbox.append(
             "transfer",

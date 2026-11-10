@@ -34,6 +34,7 @@ public class RiskClient {
 
   public RiskEvaluation evaluate(
       java.util.UUID transferId,
+      java.util.UUID accountId,
       long amount,
       String currency) {
     if (!enabled) {
@@ -43,14 +44,11 @@ public class RiskClient {
       throw new RiskUnavailableException("risk circuit breaker is open");
     }
     try {
-      String body =
-          "{\"payment_id\":\""
-              + transferId
-              + "\",\"account_id\":\"unknown\",\"amount_cents\":"
-              + amount
-              + ",\"currency\":\""
-              + currency
-              + "\",\"account_age_days\":30,\"transactions_last_24h\":0,\"country_mismatch\":false,\"device_trusted\":true,\"rule_version\":\"1.0.0\"}";
+      String body = mapper.writeValueAsString(java.util.Map.of(
+          "payment_id", transferId.toString(), "account_id", accountId.toString(),
+          "amount_cents", amount, "currency", currency, "account_age_days", 30,
+          "transactions_last_24h", 0, "country_mismatch", false, "device_trusted", true,
+          "rule_version", "1.0.0"));
       HttpRequest request =
           HttpRequest.newBuilder(endpoint)
               .timeout(timeout)
@@ -63,6 +61,12 @@ public class RiskClient {
         throw new RiskUnavailableException("risk engine returned HTTP " + response.statusCode());
       }
       JsonNode json = mapper.readTree(response.body());
+      if (!transferId.toString().equals(json.path("payment_id").asText())
+          || !"1.0.0".equals(json.path("rule_version").asText())
+          || !java.util.Set.of("APPROVE", "REVIEW", "REJECT").contains(json.path("decision").asText())
+          || !json.path("score").isIntegralNumber()) {
+        throw new RiskUnavailableException("invalid risk engine response");
+      }
       breaker.recordSuccess();
       return new RiskEvaluation(json.path("decision").asText("REVIEW"), json.path("score").asInt(0));
     } catch (RiskUnavailableException exception) {
