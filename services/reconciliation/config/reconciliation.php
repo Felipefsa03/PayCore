@@ -1,6 +1,8 @@
 <?php
 
 return [
+    'integration_url' => env('RECONCILIATION_INTEGRATION_URL'),
+    'partner_key' => env('RECONCILIATION_PARTNER_KEY'),
     /*
     |--------------------------------------------------------------------------
     | Partner API key

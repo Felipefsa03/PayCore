@@ -10,6 +10,9 @@ import com.paycore.financialcore.ledger.LedgerService;
 import com.paycore.financialcore.payments.OutboxEventService;
 import com.paycore.financialcore.payments.Transfer;
 import com.paycore.financialcore.payments.TransferRepository;
+import com.paycore.financialcore.app.risk.RiskClient;
+import com.paycore.financialcore.app.risk.RiskEvaluation;
+import com.paycore.financialcore.app.risk.RiskUnavailableException;
 import java.security.MessageDigest;
 import java.time.Instant;
 import java.util.UUID;
@@ -24,18 +27,21 @@ public class TransferService {
   private final LedgerService ledger;
   private final IdempotencyService idempotency;
   private final OutboxEventService outbox;
+  private final RiskClient risk;
 
   public TransferService(
       AccountRepository accounts,
       TransferRepository transfers,
       LedgerService ledger,
       IdempotencyService idempotency,
-      OutboxEventService outbox) {
+      OutboxEventService outbox,
+      RiskClient risk) {
     this.accounts = accounts;
     this.transfers = transfers;
     this.ledger = ledger;
     this.idempotency = idempotency;
     this.outbox = outbox;
+    this.risk = risk;
   }
 
   @Transactional
@@ -47,6 +53,14 @@ public class TransferService {
       String currency,
       String idempotencyKey,
       UUID correlationId) {
+    return submit(ownerId, sourceAccountId, destinationAccountId, amount, currency, idempotencyKey, correlationId).transfer();
+  }
+
+  public record Submission(Transfer transfer, boolean replay) {}
+
+  @Transactional
+  public Submission submit(UUID ownerId, UUID sourceAccountId, UUID destinationAccountId,
+      long amount, String currency, String idempotencyKey, UUID correlationId) {
     if (ownerId == null || sourceAccountId == null || destinationAccountId == null) {
       throw new IllegalArgumentException("owner and account ids must not be null");
     }
@@ -78,7 +92,7 @@ public class TransferService {
 
     if (IdempotencyRecord.Status.COMPLETED.name().equals(record.getStatus())
         && record.getTransferId() != null) {
-      return transfers.findById(record.getTransferId()).orElseThrow();
+      return new Submission(transfers.findById(record.getTransferId()).orElseThrow(), true);
     }
 
     UUID first = sourceAccountId.compareTo(destinationAccountId) < 0 ? sourceAccountId : destinationAccountId;
@@ -99,20 +113,34 @@ public class TransferService {
       throw new IllegalArgumentException("account currency must match transfer currency");
     }
 
+    UUID transferId = UUID.randomUUID();
+    Transfer transfer = new Transfer(
+        transferId, sourceAccountId, destinationAccountId, amount, currency, idempotencyKey, correlationId);
+    String rejectionReason;
     try {
-      Transfer transfer =
-          new Transfer(
-              UUID.randomUUID(),
-              sourceAccountId,
-              destinationAccountId,
-              amount,
-              currency,
-              idempotencyKey,
-              correlationId);
+      Instant now = Instant.now();
+      long recent = risk.isEnabled()
+          ? transfers.countBySourceAccountIdAndCreatedAtAfter(sourceAccountId, now.minus(java.time.Duration.ofDays(1)))
+          : 0;
+      RiskEvaluation evaluation = risk.evaluate(transferId, sourceAccountId, amount, currency,
+          java.time.Duration.between(source.getCreatedAt(), now).toDays(), recent);
+      rejectionReason = switch (evaluation.decision()) {
+        case "APPROVE" -> null;
+        case "REJECT" -> "risk_rejected";
+        case "REVIEW" -> "risk_review_required";
+        default -> "risk_unavailable";
+      };
+    } catch (RiskUnavailableException exception) {
+      rejectionReason = "risk_unavailable";
+    }
 
+    try {
       long sourceBalance = ledger.balanceOf(source.getId());
-      if (source.getOverdraftPolicy() == Account.OverdraftPolicy.FORBIDDEN && sourceBalance < amount) {
-        transfer.reject("insufficient_funds");
+      if (rejectionReason == null && source.getOverdraftPolicy() == Account.OverdraftPolicy.FORBIDDEN && sourceBalance < amount) {
+        rejectionReason = "insufficient_funds";
+      }
+      if (rejectionReason != null) {
+        transfer.reject(rejectionReason);
         Transfer saved = transfers.saveAndFlush(transfer);
         outbox.append(
             "transfer",
@@ -122,7 +150,7 @@ public class TransferService {
             transferPayload(saved),
             saved.getCorrelationId());
         idempotency.complete(record, saved.getId(), snapshot(saved));
-        return saved;
+        return new Submission(saved, false);
       }
 
       transfer.markValidating();
@@ -139,7 +167,7 @@ public class TransferService {
           transferPayload(saved),
           saved.getCorrelationId());
       idempotency.complete(record, saved.getId(), snapshot(saved));
-      return saved;
+      return new Submission(saved, false);
     } catch (RuntimeException exception) {
       idempotency.release(record);
       throw exception;

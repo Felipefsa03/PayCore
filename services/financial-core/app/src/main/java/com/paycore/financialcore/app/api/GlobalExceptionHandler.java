@@ -37,6 +37,16 @@ public class GlobalExceptionHandler {
                 exception.getCode(), exception.getMessage(), exception.getDetails()));
   }
 
+  @ExceptionHandler(com.paycore.financialcore.app.idempotency.IdempotencyKeyConflictException.class)
+  ResponseEntity<ApiError> handleKeyConflict() {
+    return error(HttpStatus.CONFLICT, "idempotency_key_conflict", "Chave reutilizada com dados diferentes.");
+  }
+
+  @ExceptionHandler(com.paycore.financialcore.app.idempotency.IdempotencyKeyInProgressException.class)
+  ResponseEntity<ApiError> handleKeyBusy() {
+    return error(HttpStatus.CONFLICT, "idempotency_key_in_progress", "Transferência em andamento.");
+  }
+
   @ExceptionHandler(AccountNotFoundException.class)
   ResponseEntity<ApiError> handleNotFound(AccountNotFoundException exception) {
     return error(HttpStatus.NOT_FOUND, "account_not_found", "Conta não encontrada.");

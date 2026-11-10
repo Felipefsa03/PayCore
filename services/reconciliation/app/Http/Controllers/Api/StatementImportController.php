@@ -12,6 +12,7 @@ use App\Models\StatementImportStatus;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
 class StatementImportController extends Controller
@@ -37,14 +38,19 @@ class StatementImportController extends Controller
         $storagePath = "statements/{$hash}.csv";
 
         try {
-            Storage::disk($disk)->put($storagePath, file_get_contents($file->getRealPath()));
+            abort_unless(Storage::disk($disk)->put($storagePath, file_get_contents($file->getRealPath())), 503);
+            $import = DB::transaction(function () use ($file, $storagePath, $hash) {
 
-            $import = StatementImport::create([
-                'original_filename' => $file->getClientOriginalName(),
-                'storage_path' => $storagePath,
-                'file_hash' => $hash,
-                'status' => StatementImportStatus::Pending->value,
-            ]);
+                $import = StatementImport::create([
+                    'original_filename' => $file->getClientOriginalName(),
+                    'storage_path' => $storagePath,
+                    'file_hash' => $hash,
+                    'status' => StatementImportStatus::Pending->value,
+                ]);
+                ProcessStatementImport::dispatch($import->id);
+
+                return $import;
+            });
         } catch (UniqueConstraintViolationException) {
             // Lost a race against a concurrent upload of the same file: the other
             // request owns processing, so hand back its result instead of duplicating it.
@@ -54,8 +60,6 @@ class StatementImportController extends Controller
                 ->response()
                 ->setStatusCode(JsonResponse::HTTP_OK);
         }
-
-        ProcessStatementImport::dispatch($import->id);
 
         return (new StatementImportResource($import))
             ->response()
