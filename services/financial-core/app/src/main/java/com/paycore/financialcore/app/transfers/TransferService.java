@@ -118,7 +118,12 @@ public class TransferService {
         transferId, sourceAccountId, destinationAccountId, amount, currency, idempotencyKey, correlationId);
     String rejectionReason;
     try {
-      RiskEvaluation evaluation = risk.evaluate(transferId, sourceAccountId, amount, currency);
+      Instant now = Instant.now();
+      long recent = risk.isEnabled()
+          ? transfers.countBySourceAccountIdAndCreatedAtAfter(sourceAccountId, now.minus(java.time.Duration.ofDays(1)))
+          : 0;
+      RiskEvaluation evaluation = risk.evaluate(transferId, sourceAccountId, amount, currency,
+          java.time.Duration.between(source.getCreatedAt(), now).toDays(), recent);
       rejectionReason = switch (evaluation.decision()) {
         case "APPROVE" -> null;
         case "REJECT" -> "risk_rejected";

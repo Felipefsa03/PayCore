@@ -32,11 +32,15 @@ public class RiskClient {
     this.breaker = new CircuitBreaker(3, 5_000);
   }
 
+  public boolean isEnabled() {
+    return enabled;
+  }
+
   public RiskEvaluation evaluate(
       java.util.UUID transferId,
       java.util.UUID accountId,
       long amount,
-      String currency) {
+      String currency, long accountAgeDays, long recentTransactions) {
     if (!enabled) {
       return new RiskEvaluation("APPROVE", 0);
     }
@@ -46,8 +50,8 @@ public class RiskClient {
     try {
       String body = mapper.writeValueAsString(java.util.Map.of(
           "payment_id", transferId.toString(), "account_id", accountId.toString(),
-          "amount_cents", amount, "currency", currency, "account_age_days", 30,
-          "transactions_last_24h", 0, "country_mismatch", false, "device_trusted", true,
+          "amount_cents", amount, "currency", currency, "account_age_days", accountAgeDays,
+          "transactions_last_24h", recentTransactions, "country_mismatch", false, "device_trusted", true,
           "rule_version", "1.0.0"));
       HttpRequest request =
           HttpRequest.newBuilder(endpoint)

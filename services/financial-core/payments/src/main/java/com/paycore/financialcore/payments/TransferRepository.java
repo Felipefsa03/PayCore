@@ -10,7 +10,7 @@ import org.springframework.data.repository.query.Param;
 
 public interface TransferRepository extends JpaRepository<Transfer, UUID> {
 
-  Optional<Transfer> findByIdempotencyKey(String idempotencyKey);
+  long countBySourceAccountIdAndCreatedAtAfter(UUID sourceAccountId, java.time.Instant since);
 
   @Lock(LockModeType.PESSIMISTIC_WRITE)
   @Query("select t from Transfer t where t.id = :id")
