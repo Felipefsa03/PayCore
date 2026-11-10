@@ -73,8 +73,11 @@ def main():
         secret, key = secrets.token_hex(32), secrets.token_hex(24)
         rp, jp, np, lp = (local_port() for _ in range(4))
         risk, core, nest, laravel = [f"http://127.0.0.1:{port}" for port in (rp, jp, np, lp)]
-        engine = launch(SERVICES / "risk-engine", [sys.executable, "-m", "uvicorn", "app.main:app",
-                        "--port", str(rp)], {}, risk + "/health")
+        def start_engine():
+            return launch(SERVICES / "risk-engine", [sys.executable, "-m", "uvicorn", "app.main:app",
+                          "--port", str(rp)], {}, risk + "/health")
+
+        engine = start_engine()
         launch(ROOT, ["java", "-jar", "services/financial-core/app/target/app-0.1.0-SNAPSHOT.jar"],
                dict(SERVER_PORT=str(jp), PAYCORE_RISK_ENABLED="true", PAYCORE_RISK_URL=risk, PAYCORE_RISK_TIMEOUT_MS="2000",
                     PAYCORE_AUTH_JWT_SECRET=secret), core + "/actuator/health")
@@ -110,8 +113,28 @@ def main():
         ref = payment["id"]
         assert payment["state"] == "COMPLETED" and pay(1000, idem)["id"] == ref, payment
         assert pay(100000, str(uuid.uuid4()))["failureReason"] == "risk_review_required"
+        def postings(account_id):
+            return http.get(core + "/accounts/" + account_id + "/postings", headers=auth).raise_for_status().json()
+
+        baseline = postings(src)
         stop(engine)
-        assert pay(1000, str(uuid.uuid4()))["failureReason"] == "risk_unavailable"
+        for _ in range(3):
+            failed = pay(1000, str(uuid.uuid4()))
+            assert failed["failureReason"] == "risk_unavailable" and failed["journalEntryId"] is None
+        restored_at = time.monotonic()
+        start_engine()
+        # Recovery of the dependency alone must not bypass the open breaker.
+        open_circuit = pay(1000, str(uuid.uuid4()))
+        assert open_circuit["failureReason"] == "risk_unavailable"
+        assert baseline == postings(src)
+        time.sleep(5.1)
+        # Use a fresh source so that velocity rules do not mask circuit recovery.
+        original_src = src
+        src = account()
+        recovered = pay(1000, str(uuid.uuid4()))
+        assert recovered["state"] == "COMPLETED" and recovered["journalEntryId"]
+        recovery_seconds = round(time.monotonic() - restored_at, 3)
+        src = original_src
         view = http.get(nest + "/v1/transactions/" + ref, headers=partner).raise_for_status().json()
         assert view["journalEntryId"] == payment["journalEntryId"]
         artisan("reconciliation:sync", ref)
@@ -140,7 +163,7 @@ def main():
         assert report.raise_for_status().json()["by_status"]["resolved"] == 1
         assert before == ledger()
         print(json.dumps(dict(transfer=ref, journal=payment["journalEntryId"], correlation=payment["correlationId"],
-                              decisions=2, ledger_preserved=True, incident_seconds=round(time.monotonic()-detected, 3))))
+                              decisions=2, ledger_preserved=True, risk_recovery_seconds=recovery_seconds, incident_seconds=round(time.monotonic()-detected, 3))))
 
 if __name__ == "__main__":
     main()
