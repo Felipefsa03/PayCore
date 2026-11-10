@@ -12,8 +12,8 @@ use App\Models\StatementImportStatus;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 
 class StatementImportController extends Controller
 {
@@ -42,10 +42,10 @@ class StatementImportController extends Controller
             $import = DB::transaction(function () use ($file, $storagePath, $hash) {
 
                 $import = StatementImport::create([
-                'original_filename' => $file->getClientOriginalName(),
-                'storage_path' => $storagePath,
-                'file_hash' => $hash,
-                'status' => StatementImportStatus::Pending->value,
+                    'original_filename' => $file->getClientOriginalName(),
+                    'storage_path' => $storagePath,
+                    'file_hash' => $hash,
+                    'status' => StatementImportStatus::Pending->value,
                 ]);
                 ProcessStatementImport::dispatch($import->id);
 
@@ -60,7 +60,6 @@ class StatementImportController extends Controller
                 ->response()
                 ->setStatusCode(JsonResponse::HTTP_OK);
         }
-
 
         return (new StatementImportResource($import))
             ->response()
