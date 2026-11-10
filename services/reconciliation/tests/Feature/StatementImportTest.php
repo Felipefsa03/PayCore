@@ -25,6 +25,24 @@ class StatementImportTest extends TestCase
         Storage::fake('local');
     }
 
+    #[Test]
+    public function decisions_preserve_the_original_transaction_and_record_history(): void
+    {
+        $transaction = Transaction::factory()->create(['reference' => 'AUDIT', 'amount_cents' => 1000]);
+        $divergence = Divergence::create(['transaction_id' => $transaction->id, 'type' => 'mismatch', 'status' => 'open']);
+        $uri = "/api/divergences/{$divergence->id}/decisions";
+        $this->withHeaders(['X-Api-Key' => self::API_KEY]);
+        $decision = ['status' => 'resolved', 'operator_reference' => 'lab', 'reason' => 'Validated bank correction'];
+        $this->postJson($uri, $decision)->assertConflict();
+        $this->postJson($uri, [...$decision, 'status' => 'investigating'])->assertCreated();
+        $this->postJson($uri, $decision)->assertCreated();
+        $this->postJson($uri, $decision)->assertConflict();
+        $this->getJson($uri)->assertJsonCount(2)->assertJsonPath('1.status', 'resolved');
+        $day = now('UTC')->toDateString();
+        $this->getJson("/api/reconciliation-report?from={$day}&to={$day}")->assertOk()->assertJsonPath('by_status.resolved', 1);
+        $this->assertEquals(1000, $transaction->fresh()->amount_cents);
+    }
+
     private function csvFile(string $content, string $filename = 'statement.csv'): UploadedFile
     {
         return UploadedFile::fake()->createWithContent($filename, $content);
