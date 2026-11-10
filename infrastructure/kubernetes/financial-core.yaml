@@ -1,0 +1,19 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: paycore-financial-core
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: paycore-financial-core
+  template:
+    metadata:
+      labels:
+        app: paycore-financial-core
+    spec:
+      containers:
+        - name: financial-core
+          image: paycore/financial-core:local
+          ports:
+            - containerPort: 8080
