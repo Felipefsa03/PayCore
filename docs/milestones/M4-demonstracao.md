@@ -25,3 +25,5 @@ No Fedora com Docker ativo, Java 21 ou compatível, Python com venv, PHP com SQL
 ```
 
 A primeira execução baixa dependências. O script inicia um PostgreSQL exclusivo em porta aleatória de loopback, compila os serviços, roda o incidente e remove o contêiner e seu volume ao sair. O resultado esperado contém `ledger_preserved: true`, duas decisões e os identificadores do pagamento e do lançamento. Os quatro serviços encerram após a demonstração.
+
+O ensaio de recuperação causa três falhas consecutivas no cliente de risco. Reinicia o FastAPI e verifica que, mesmo com o serviço saudável, o circuito ainda bloqueia pagamentos dentro do intervalo de proteção. Compara os postings antes e após as recusas. Depois do intervalo, um pagamento de uma conta nova deve concluir e gerar journal. A conta nova evita confundir a regra de velocidade com a recuperação do circuito. Na execução de 10/11/2026, do início da restauração à confirmação decorreram 5,735 s, incluindo a espera intencional de 5,1 s.
