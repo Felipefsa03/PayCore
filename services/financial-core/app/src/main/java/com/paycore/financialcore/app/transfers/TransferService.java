@@ -53,6 +53,14 @@ public class TransferService {
       String currency,
       String idempotencyKey,
       UUID correlationId) {
+    return submit(ownerId, sourceAccountId, destinationAccountId, amount, currency, idempotencyKey, correlationId).transfer();
+  }
+
+  public record Submission(Transfer transfer, boolean replay) {}
+
+  @Transactional
+  public Submission submit(UUID ownerId, UUID sourceAccountId, UUID destinationAccountId,
+      long amount, String currency, String idempotencyKey, UUID correlationId) {
     if (ownerId == null || sourceAccountId == null || destinationAccountId == null) {
       throw new IllegalArgumentException("owner and account ids must not be null");
     }
@@ -84,7 +92,7 @@ public class TransferService {
 
     if (IdempotencyRecord.Status.COMPLETED.name().equals(record.getStatus())
         && record.getTransferId() != null) {
-      return transfers.findById(record.getTransferId()).orElseThrow();
+      return new Submission(transfers.findById(record.getTransferId()).orElseThrow(), true);
     }
 
     UUID first = sourceAccountId.compareTo(destinationAccountId) < 0 ? sourceAccountId : destinationAccountId;
@@ -137,7 +145,7 @@ public class TransferService {
             transferPayload(saved),
             saved.getCorrelationId());
         idempotency.complete(record, saved.getId(), snapshot(saved));
-        return saved;
+        return new Submission(saved, false);
       }
 
       transfer.markValidating();
@@ -154,7 +162,7 @@ public class TransferService {
           transferPayload(saved),
           saved.getCorrelationId());
       idempotency.complete(record, saved.getId(), snapshot(saved));
-      return saved;
+      return new Submission(saved, false);
     } catch (RuntimeException exception) {
       idempotency.release(record);
       throw exception;

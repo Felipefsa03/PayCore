@@ -28,7 +28,7 @@ public class RiskClient {
     this.endpoint = URI.create(baseUrl.replaceAll("/+$", "") + "/risk/evaluate");
     this.timeout = Duration.ofMillis(timeoutMs);
     this.mapper = mapper;
-    this.http = HttpClient.newBuilder().connectTimeout(timeout).build();
+    this.http = HttpClient.newBuilder().version(HttpClient.Version.HTTP_1_1).connectTimeout(timeout).build();
     this.breaker = new CircuitBreaker(3, 5_000);
   }
 
