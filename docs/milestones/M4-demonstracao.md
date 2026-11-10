@@ -15,3 +15,13 @@ A transferência e1659290-6ec4-4f7d-9ecf-02d65e791181 movimentou 1.000 centavos.
 Os testes separados passaram enquanto o primeiro pagamento real falhou. A tentativa de upgrade HTTP do cliente Java chegou ao Uvicorn como uma requisição inválida. Fixar HTTP/1.1 nessa fronteira permitiu o contrato real. O cenário agora exige aprovação explícita e confirma que REVIEW e indisponibilidade impedem movimentação. Repetições do pagamento e do upload reutilizam os identificadores.
 
 O relatório filtra pela data de detecção em UTC, incluindo as duas datas informadas. A referência de operador é declarada por um cliente autenticado pela chave interna do serviço. O cliente calcula idade e frequência a partir da conta e das transferências persistidas. Geografia e confiança do dispositivo são simuladas no laboratório. A demonstração usa fila síncrona e o transporte local de outbox. Kafka, filas assíncronas e operação distribuída exigem evidências próprias.
+
+### Teste local com um comando
+
+No Fedora com Docker ativo, Java 21 ou compatível, Python com venv, PHP com SQLite e extensões do Composer, Node/npm, Composer e Make, execute na raiz:
+
+```bash
+./scripts/testar-local.sh
+```
+
+A primeira execução baixa dependências. O script inicia um PostgreSQL exclusivo em porta aleatória de loopback, compila os serviços, roda o incidente e remove o contêiner e seu volume ao sair. O resultado esperado contém `ledger_preserved: true`, duas decisões e os identificadores do pagamento e do lançamento. Os quatro serviços encerram após a demonstração.
