@@ -5,6 +5,10 @@ cd "$(dirname "$0")/.."
 for tool in docker java npm php composer python3 make; do
   command -v "$tool" >/dev/null || { echo "Instale $tool para continuar." >&2; exit 1; }
 done
+if ! php -m 2>/dev/null | grep -q pdo_sqlite; then
+  echo "PHP sem a extensao pdo_sqlite. Instale php-sqlite e habilite extension=pdo_sqlite (e sqlite3) no php.ini antes de continuar." >&2
+  exit 1
+fi
 docker info >/dev/null
 lab=$(mktemp -d)
 container=

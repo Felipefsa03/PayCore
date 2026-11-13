@@ -161,9 +161,12 @@ def main():
         day = datetime.now(timezone.utc).date().isoformat()
         report = http.get(laravel + "/api/reconciliation-report", params={"from":day,"to":day}, headers=partner)
         assert report.raise_for_status().json()["by_status"]["resolved"] == 1
-        assert before == ledger()
+        final_ledger = ledger()
+        decisions = len(http.get(uri, headers=partner).raise_for_status().json())
+        assert before == final_ledger
         print(json.dumps(dict(transfer=ref, journal=payment["journalEntryId"], correlation=payment["correlationId"],
-                              decisions=2, ledger_preserved=True, risk_recovery_seconds=recovery_seconds, incident_seconds=round(time.monotonic()-detected, 3))))
+                              decisions=decisions, ledger_preserved=before == final_ledger,
+                              risk_recovery_seconds=recovery_seconds, incident_seconds=round(time.monotonic()-detected, 3))))
 
 if __name__ == "__main__":
     main()
