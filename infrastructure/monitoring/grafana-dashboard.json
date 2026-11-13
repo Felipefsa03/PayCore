@@ -1,0 +1,7 @@
+{
+  "title": "PayCore - Financial Core",
+  "panels": [
+    { "title": "HTTP requests", "type": "stat" },
+    { "title": "Latency", "type": "timeseries" }
+  ]
+}
